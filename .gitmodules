@@ -1,0 +1,3 @@
+[submodule "LinuxBootImageFileGenerator"]
+	path = LinuxBootImageFileGenerator
+	url = https://github.com/robseb/LinuxBootImageFileGenerator.git
