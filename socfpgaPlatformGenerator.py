@@ -64,11 +64,12 @@ from datetime import datetime
 from datetime import timedelta
 
 try:
-    from LinuxBootImageGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
-except ModuleNotFoundError:
-    print('The LinuxBootImageGenerator is not available inside the cloned folder!')
-    print('Delate the github folder and use following command to clone all required components:')
-    print('$ git clone --recursive -j8 '+GIT_SCRIPT_URL)
+    from LinuxBootImageFileGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
+except ModuleNotFoundError as ex:
+    print('ERROR: The LinuxBootImageGenerator is not available inside the cloned folder!')
+    print('       Delate the github folder and use following command '
+    print('       to clone all required components:')
+    print(' $ git clone --recursive -j8 '+GIT_SCRIPT_URL+'\n')
     sys.exit()
 
 if sys.platform =='linux':
