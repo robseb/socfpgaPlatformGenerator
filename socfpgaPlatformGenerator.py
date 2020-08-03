@@ -40,6 +40,8 @@ import math
 import glob
 from pathlib import Path
 from datetime import datetime
+from datetime import timedelta
+
 
 if sys.platform =='linux':
     try:
@@ -157,7 +159,7 @@ if __name__ == '__main__':
             print('ERROR: No Intel EDS Installation Folder was found!')
             sys.exit()
 
-        # 2.Step: Find the latest Quartus Version No.
+        # 2.Step: Find the latest Intel EDS Version No.
         avlVer = []
         for name in os.listdir(EDS_Folder):
             if  os.path.abspath(name):
@@ -167,7 +169,7 @@ if __name__ == '__main__':
                     pass
 
         if (len(avlVer)==0):
-            print('ERROR: No valid Quartus Prime Version was found')
+            print('ERROR: No valid Intel EDS Version was found')
             sys.exit()
 
         avlVer.sort(reverse = True) 
@@ -176,9 +178,16 @@ if __name__ == '__main__':
         EDS_Folder = EDS_Folder +SPLM[SPno]+ str(highestVer)   
 
         if (not(os.path.realpath(EDS_Folder))):
-            print('ERROR: No Quartus Prime Installation Folder was found!')
+            print('ERROR: No vaild Intel EDS Installation Folder was found!')
             sys.exit()
 
+        if(highestVer < 19): 
+            print('ERROR: This script is designed for Intel EDS Version 19+ (19.1, 20.1, ...) ')
+            print('       You using Version '+str(highestVer)+' please update Intel EDS!')
+            sys.exit()
+        elif(highestVer > 20.1):
+            print('WARNING: This script was designed for Intel EDS Version 19.1 and 20.1')
+            print('         Your version is newer. Errors may occur!')
 
         # Check if the NIOS II Command Shell is available 
         if((not(os.path.isfile(EDS_Folder+EDS_EMBSHELL_DIR)) )):
@@ -222,7 +231,7 @@ if __name__ == '__main__':
         sys.exit()
 
 ############################### Check that the script runs inside the Quartus project ###############################
-    print('--> Check that the script runs inside the Quartus folder')
+    print('--> Check that the script runs inside the Quartus Prime project folder')
     
     # Find the Quartus project (.qpf) file 
     qpf_file_name = ''
@@ -241,9 +250,18 @@ if __name__ == '__main__':
     # Find the Platform Designer folder
     if not os.path.isdir(quartus_proj_top_dir+SPLM[SPno]+qsys_file_name[:qsys_file_name.find('.qsys')]):
         print('ERROR: The script was not executed inside the cloned Github folder')
-        print('       Please clone this script from Github and execute the script')
+        print('       Please clone this script from Github, copy it to the top folder of your Quartus project and execute the script')
         print('       directly inside the cloned folder!')
         print('URL: '+GIT_SCRIPT_URL)
+        print(' -- Required folder structure  --')
+        print(' YOUR_QURTUS_PROJECT_FOLDER ')
+        print('|     L-- PLATFORM_DESIGNER_FOLDER')
+        print('|     L-- platform_designer.qsys')
+        print('|     L-- _handoff')
+        print('|     L-- quartus_project.qpf')
+        print('|     L-- socfpgaPlatformGenerator <<<----')
+        print('|         L-- socfpgaPlatformGenerator.py')
+        print(' Note: File names can be chosen freely')
         sys.exit()
 
     # Find the handoff folder
@@ -331,7 +349,7 @@ if __name__ == '__main__':
 ####################################################### Clone "u-boot-socfpga" ################################################
     u_boot_socfpga_dir = quartus_bootloder_dir+SPLM[SPno]+'u-boot-socfpga'
     if(os.path.isdir(u_boot_socfpga_dir)):
-        print('--> u-boot-socfpga is already available')
+        print('--> "u-boot-socfpga" is already available')
         print('       Pull it from Github')
         g = git.cmd.Git(u_boot_socfpga_dir)
         g.pull()
@@ -378,123 +396,233 @@ if __name__ == '__main__':
 
 #################################### Setup u-boot with the Quartus Prime Settings  ################################################
 
-    print('--> Start the Intel Embedded Command Shell')
-    try:
-        # Create the BSP package for the device with the Intel EDS shell
-        with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-            time.sleep(DELAY_MS)
-            
-            print('--> Generate the Board Support Package (BSP) for the Quartus Prime configuration')
-            b = bytes(' cd '+quartus_proj_top_dir+"\n", 'utf-8')
-            edsCmdShell.stdin.write(b) 
+    # Is a new bootloader build necessary?
+    bootloader_build_required =True
+    if (bootloader_available and os.path.isfile(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp')):
+        modification_time = os.path.getmtime(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp') 
+        current_time =  datetime.now().timestamp()
 
-            b = bytes('bsp-create-settings --type spl --bsp-dir software/bootloader '+ \
-                      '--preloader-settings-dir "'+handoff_folder_name+'" ' +\
-                      '--settings software/bootloader/settings.bsp\n','utf-8')
+        # Offset= 3 hour
+        if modification_time  + 3*60*60 > current_time:
+            bootloader_build_required = False
+            print('\n################################################################################')
+            print('#                                                                              #')
+            print('#                  Bootloader was created within 3 hours ago                   #')
+            print('#                                                                              #')
+            print('#                    Do you want to rebuild the bootloader?                    #')
+            print('#                                                                              #')
+            print('--------------------------------------------------------------------------------')
+            print('#    Y:              Yes, rebuild the bootloader                               #')
+            print('#    anything else:  No,  continue without rebuilding the bootloader           #')
+            print('#    Q:              Abort                                                     #')
+            print('------------------------------------------------------------------------------')
+            __wait2__ = input('Please type...')
 
-            edsCmdShell.stdin.write(b)
-            edsCmdShell.communicate()
-            
-            
-        # Check that BSP generation is okay
-        if not os.path.isdir(quartus_proj_top_dir+'/software/bootloader/generated') or \
-            not os.path.isfile(quartus_proj_top_dir+'/software/bootloader/settings.bsp'):
-            print('ERROR: The BSP generation failed!')
+            if __wait2__ =='q' or __wait2__=='Q':
+                sys.exit()
+            elif __wait2__ =='Y' or __wait2__=='y':
+                bootloader_build_required = True
+    '''
+    Later update: Support for linaro build system 
+    https://rocketboards.org/foswiki/Documentation/BuildingBootloader#Building_Linux_Kernel
+
+    wget https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+    tar xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
+    export PATH=`pwd`/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin:$PATH
+    export ARCH=arm
+    export CROSS_COMPILE=arm-linux-gnueabihf-
+    '''
+
+    # Build the bootloader
+    if bootloader_build_required:
+        print('--> Start the Intel Embedded Command Shell')
+        try:
+            # Create the BSP package for the device with the Intel EDS shell
+            with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                time.sleep(DELAY_MS)
+                
+                print('--> Generate the Board Support Package (BSP) for the Quartus Prime configuration')
+                b = bytes(' cd '+quartus_proj_top_dir+"\n", 'utf-8')
+                edsCmdShell.stdin.write(b) 
+
+                b = bytes('bsp-create-settings --type spl --bsp-dir software/bootloader '+ \
+                        '--preloader-settings-dir "'+handoff_folder_name+'" ' +\
+                        '--settings software/bootloader/settings.bsp\n','utf-8')
+
+                edsCmdShell.stdin.write(b)
+                edsCmdShell.communicate()
+                
+                
+            # Check that BSP generation is okay
+            if not os.path.isdir(quartus_proj_top_dir+'/software/bootloader/generated') or \
+                not os.path.isfile(quartus_proj_top_dir+'/software/bootloader/settings.bsp'):
+                print('ERROR: The BSP generation failed!')
+                sys.exit()
+
+            print('--> Run the Intel EDS Filter script')
+            with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                time.sleep(DELAY_MS)
+                b = bytes('cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
+                edsCmdShell.stdin.write(b) 
+                #
+                # 
+                # soc_type      - Type of SoC, either 'cyclone5' or 'arria5'.
+                # input_qts_dir - Directory with compiled Quartus project
+                #                and containing the Quartus project file (QPF).
+                # input_bsp_dir - Directory with generated bsp containing
+                #                 the settings.bsp file.
+                # output_dir    - Directory to store the U-Boot compatible
+                #                 headers.
+
+                b = bytes('./'+eds_filter_script_dir+' '+device_name+' ../../../ ../ ' \
+                        '.'+u_boot_bsp_qts_dir+'  \n','utf-8')
+                edsCmdShell.stdin.write(b) 
+                #time.sleep(10*DELAY_MS)
+
+                edsCmdShell.communicate()
+                time.sleep(3*DELAY_MS)
+        
+        except Exception as ex:
+            print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
             sys.exit()
 
-        print('--> Run the Intel EDS Filter script')
-        with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-            time.sleep(DELAY_MS)
-            b = bytes('cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
-            edsCmdShell.stdin.write(b) 
-            #
-            # 
-            # soc_type      - Type of SoC, either 'cyclone5' or 'arria5'.
-            # input_qts_dir - Directory with compiled Quartus project
-            #                and containing the Quartus project file (QPF).
-            # input_bsp_dir - Directory with generated bsp containing
-            #                 the settings.bsp file.
-            # output_dir    - Directory to store the U-Boot compatible
-            #                 headers.
-            # ./arch/arm/mach-socfpga/qts-filter.sh cyclone5 ../../../ ../ ./board/altera/cyclone5-socdk/qts/
-            #
+        # Check that the output files are available 
+        if (not os.path.isdir(quartus_bootloder_dir+SPLM[SPno]+"generated"))  or \
+         (not os.path.isdir(quartus_bootloder_dir+SPLM[SPno]+"generated"+SPLM[SPno]+"sdram")):
+            print('ERROR: BSP Generation failed!')
 
-            # ./software/bootloader/u-boot-socfpga/arch/arm/mach-socfpga/qts-filter.sh cyclone5 ../../../ ../ ./board/altera/cyclone5-socdk/qts/ 
+        print('\n################################################################################')
+        print('#                                                                              #')
+        print('#                     OPTIONAL: CHANGE U-BOOT MANUALLY                         #')
+        print('#                                                                              #')
+        print('#  At this point it is possible to change the code of "u-boot-socfpga"         #')
+        print('#                                                                              #')
+        print('--------------------------------------------------------------------------------')
+        print('#                   --- "u-boot-socfpga" file direcotroy ---                   #')
+        print('#   '+u_boot_socfpga_dir)
+        print('--------------------------------------------------------------------------------')
+        print('#                M: Start menuconfig for "u-boot-socfpga"                      #')
+        print('#                Q: Abort                                                      #')
+        print('#    anything else: continue with compiling "u-boot-socfpga"                   #')
+        print('------------------------------------------------------------------------------')
+        __wait__ = input('Type anything to continue ... ')
 
-            b = bytes('./'+eds_filter_script_dir+' '+device_name+' ../../../ ../ ' \
-                    '.'+u_boot_bsp_qts_dir+'  \n','utf-8')
-            edsCmdShell.stdin.write(b) 
-            #time.sleep(10*DELAY_MS)
+        start_menuconfig = False 
+        if __wait__ =='q' or __wait__=='Q':
+            sys.exit()
+        
+        if __wait__ =='m' or __wait__=='M':
+            start_menuconfig = True
 
-            edsCmdShell.communicate()
-            time.sleep(3*DELAY_MS)
-    
-    except Exception as ex:
-        print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
-        sys.exit()
+    ###################################################   Build u-boot  ################################################
+        print('--> Start the Intel Embedded Command Shell')
+        try:
+            with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                time.sleep(DELAY_MS)
+                print('--> Compile "u-boot-socfpga"')
 
-   
+                b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
+                edsCmdShell.stdin.write(b) 
 
-    print('\n################################################################################')
-    print('#                                                                              #')
-    print('#                     OPTIONAL: CHANGE U-BOOT MANUALLY                         #')
-    print('#                                                                              #')
-    print('#  At this point it is possible to change the code of "u-boot socfpga"         #')
-    print('#                                                                              #')
-    print('--------------------------------------------------------------------------------')
-    print('#  "u-boot-socfpga" file direcotroy:                                           #')
-    print('# '+u_boot_socfpga_dir)
-    print('# q:abort')
-    print('------------------------------------------------------------------------------')
-    __wait__ = input('Type anything to continue ... ')
+                b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8')
+                edsCmdShell.stdin.write(b) 
 
-    if __wait__ =='q' or __wait__=='Q':
-        sys.exit()
+                b = bytes('export ARCH=arm \n','utf-8')
+                edsCmdShell.stdin.write(b) 
 
-#################################### Setup u-boot with the Quartus Prime Settings  ################################################
-    print('--> Start the Intel Embedded Command Shell')
-    try:
-        with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-            time.sleep(DELAY_MS)
-            print('--> Compile "u-boot-socfpga"')
-            b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
-            edsCmdShell.stdin.write(b) 
+                b = bytes('make distclean \n','utf-8')
+                edsCmdShell.stdin.write(b) 
 
-            b = bytes('export CROSS_COMPILE=arm-linux-gnueabi- \n','utf-8')
-            edsCmdShell.stdin.write(b) 
+                
+                b = bytes('make socfpga_cyclone5_defconfig\n','utf-8')
+                edsCmdShell.stdin.write(b) 
 
-            b = bytes('export ARCH=arm \n','utf-8')
-            edsCmdShell.stdin.write(b) 
+                if not start_menuconfig: 
+                    b = bytes('make -j 24 \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
 
-            b = bytes('make distclean \n','utf-8')
-            edsCmdShell.stdin.write(b) 
+                edsCmdShell.communicate()
+                time.sleep(DELAY_MS)
+        
+        except Exception as ex:
+            print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
+            sys.exit()
 
-            b = bytes('make socfpga_cyclone5_defconfig\n','utf-8')
-            edsCmdShell.stdin.write(b) 
+        ################################################### Start menuconfig ###################################################
+        # Start menuconfig for "u-boot-socfpga"
+        if start_menuconfig:
+            # Create "menuconfig.sh" shell script for starting menuconfig
+            if os.path.isfile('menuconfig.sh'):
+                try:
+                    os.remove('menuconfig.sh')
+                except Exception:
+                    print('ERROR: Failed to remove menuconfig.sh')
 
-            #b = bytes('make menuconfig \n','utf-8')
-            #edsCmdShell.stdin.write(b) 
+            with open('menuconfig.sh', "a") as f:
+                f.write('#!/bin/sh\n')
+                f.write('export TOP_FOLDER=`pwd`\n')
+                f.write('cd && cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga\n')
+                f.write('make menuconfig\n')
+                f.write('cd $TOP_FOLDER\n')
+            if not os.path.isfile('menuconfig.sh'):
+                print('ERROR: Failed to create "menuconfig.sh" script')
+                sys.exit()
+            
+            # Run the shell script to allow the user to use menuconfig
+            print('--> Starting menuconfig for "u-boot-socfpga"')
+            os.system('chmod +x menuconfig.sh  && sh  menuconfig.sh')
+            __wait3__ = input('Type anything to continue ... ')
 
-            b = bytes('make -j 24 \n','utf-8')
-            edsCmdShell.stdin.write(b) 
+            # Remove the shell script 
+            if os.path.isfile('menuconfig.sh'):
+                try:
+                    os.remove('menuconfig.sh')
+                except Exception:
+                    print('ERROR: Failed to remove menuconfig.sh')
 
-            #time.sleep(10*DELAY_MS)
+            # Build u-boot with the menuconfig changes 
+            try:
+                with subprocess.Popen(EDS_Folder+SPLM[SPno]+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                    time.sleep(DELAY_MS)
+                    print('--> Compile "u-boot-socfpga"')
 
-            edsCmdShell.communicate()
-            time.sleep(3*DELAY_MS)
-    
-    except Exception as ex:
-        print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
-        sys.exit()
+                    b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
+                    edsCmdShell.stdin.write(b) 
 
-    # Check that u-boot output file is there 
-    if not os.path.isfile(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp') or \
-        not os.path.isfile(u_boot_socfpga_dir+SPLM[SPno]+'u-boot.img'):
-        print('ERROR: u-boot build failed!')
-        sys.exit()
+                    b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
 
-    print(time.ctime(os.path.getmtime(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp')))
+                    b = bytes('export ARCH=arm \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
 
+                    b = bytes('make -j 24 \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
+
+                    edsCmdShell.communicate()
+                    time.sleep(DELAY_MS)
+            
+            except Exception as ex:
+                print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
+                sys.exit()
+
+        # Check that u-boot output file is there 
+        if not os.path.isfile(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp') or \
+            not os.path.isfile(u_boot_socfpga_dir+SPLM[SPno]+'u-boot.img'):
+            print('ERROR: u-boot build failed!')
+            sys.exit()
+
+        # Read the creation date of the output files to check that the files are new
+        modification_time = os.path.getmtime(u_boot_socfpga_dir+SPLM[SPno]+'u-boot-with-spl.sfp') 
+        current_time =  datetime.now().timestamp()
+
+        # Offset= 5 min 
+        if modification_time+ 5*60 < current_time:
+            print('Error: u-boot build failed!')
+
+        print('--> "u-boot-socfpga" build was successfully')
+    # u-boot build
+ 
+    print('\nNOTE: WORK IN PROCESS! THE DEVELOPMENT FOR THIS SCRIPT IS NOT DONE!\n')
 ############################################################ Goodby screen  ###################################################
     print('\n################################################################################')
     print('#                                                                              #')
