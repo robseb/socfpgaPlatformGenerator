@@ -27,34 +27,6 @@
 
 version = "0.01"
 
-import os
-import sys
-import time
-import io
-import re
-import shutil
-import subprocess
-import xml.etree.ElementTree as ET
-from typing import NamedTuple
-import math
-import glob
-from pathlib import Path
-from datetime import datetime
-from datetime import timedelta
-
-
-if sys.platform =='linux':
-    try:
-        import git
-        from git import RemoteProgress
-
-    except ImportError as ex:
-        print('Msg: '+str(ex))
-        print('This Python Application requirers "git"')
-        print('Use following pip command to install it:')
-        print('==> pip3 install GitPython')
-        sys.exit()
-
 #
 #
 #
@@ -74,6 +46,42 @@ GITNAME                  = "socfpgaPlatformGenerator"
 GIT_SCRIPT_URL           = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL   = "https://github.com/altera-opensource/u-boot-socfpga"
 GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2019.10" # default: master
+
+
+import os
+import sys
+import time
+import io
+import re
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
+from typing import NamedTuple
+import math
+import glob
+from pathlib import Path
+from datetime import datetime
+from datetime import timedelta
+
+try:
+    from LinuxBootImageGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
+except ModuleNotFoundError:
+    print('The LinuxBootImageGenerator is not available inside the cloned folder!')
+    print('Delate the github folder and use following command to clone all required components:')
+    print('$ git clone --recursive -j8 '+GIT_SCRIPT_URL)
+    sys.exit()
+
+if sys.platform =='linux':
+    try:
+        import git
+        from git import RemoteProgress
+
+    except ImportError as ex:
+        print('Msg: '+str(ex))
+        print('This Python Application requirers "git"')
+        print('Use following pip command to install it:')
+        print('$ pip3 install GitPython')
+        sys.exit()
 
 
 #
