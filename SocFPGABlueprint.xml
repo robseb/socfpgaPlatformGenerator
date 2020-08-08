@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding = "UTF-8" ?>
+<!-- Linux Distribution Blueprint XML file -->
+<!-- Used by the Python script "LinuxDistro2Image.py -->
+<!-- to create a custom Linux boot image file -->
+<!-- Description: -->
+<!-- item "partition" describes a partition on the final image file-->
+<!-- L "id"        => Partition number on the final image (1 is the lowest number) -->
+<!-- L "type"      => Filesystem type of partition  -->
+<!--   L       => ext[2-4], Linux, xfs, vfat, fat, none, raw, swap -->
+<!-- L "size"      => Partition size -->
+<!-- 	L	    => <no>: Byte, <no>K: Kilobyte, <no>M: Megabyte or <no>G: Gigabyte -->
+<!-- 	L	    => "*" dynamic file size => Size of the files2copy + offset  -->
+<!-- L "offset"    => in case a dynamic size is used the offset value is added to file size-->
+<!-- L "devicetree"=> compile the Linux Device (.dts) inside the partition if available (Top folder only)-->
+<!-- 	L 	    => Yes: Y or No: N -->
+<!-- L "unzip"     => Unzip a compressed file if available (Top folder only) -->
+<!-- 	L 	    => Yes: Y or No: N -->
+<LinuxDistroBlueprint>
+<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" />
+<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" />
+<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" />
+</LinuxDistroBlueprint>
