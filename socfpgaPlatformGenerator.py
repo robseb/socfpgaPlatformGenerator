@@ -291,6 +291,9 @@ if __name__ == '__main__':
         print('URL: '+GIT_SCRIPT_URL)
         sys.exit()
 
+    if not os.path.isdir(excpath+'/ubootScripts'):
+        print('ERROR: The u-boot default script folder "ubootScripts" is not available')
+
 ############################### Check that the script runs inside the Quartus project ###############################
     print('--> Check that the script runs inside the Quartus Prime project folder')
     
@@ -391,6 +394,15 @@ if __name__ == '__main__':
         print('       I am working on it...')
         sys.exit()
     print('     Device Name:"'+device_name_temp+'"') 
+
+    uboot_default_file_dir =''
+    # Find the depending default u-boot script file 
+    for name in os.listdir(excpath+'/ubootScripts'):
+        if  os.path.isfile(excpath+'/ubootScripts/'+name) and \
+        (name.find(socfpga_devices_list[device_id])!=-1):
+            uboot_default_file_dir=excpath+'/ubootScripts/'+name
+    if uboot_default_file_dir =='':
+        print('NOTE: No depping default u-boot script file available for this device!')
 
 ##################################### Update "LinuxBootImageFileGenerator" ####################################################
     print('-> Pull the latest "LinuxBootImageFileGenerator" Version from GitHub!')
@@ -802,7 +814,7 @@ if __name__ == '__main__':
                 print('      The script may not work propertly!')
         elif part.type_hex=='83': # LINUX
             ext_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
-            if not part.unzip:
+            if not part.unzip_file:
                 print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
                 print('      The script may not work propertly!')
 
@@ -945,8 +957,30 @@ if __name__ == '__main__':
             if not yocto_devicetree_dir == '':
                 print('    Copy "'+yocto_devicetree_name+'" and rename it to "zImage"')
                 # NOTE: Work required!!
-                 #NOTE: Check that is devicetree compile is enabled!
-            
+
+################################## Create the bootloader configuration file "extlinux.conf" ################################### 
+    if not os.path.isfile(vfat_folder_dir+'/extlinux.conf'):
+        print('--> Create boot configuration file "extlinux.conf" ')
+        with open(vfat_folder_dir+'/extlinux.conf', "a") as f:
+            f.write('KERNEL ../zImage\n')
+            f.write('FDT ../socfpga_cy5.dtb\n')
+            f.write('APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
+
+############################################ Create the u-boot script "uboot.script" ########################################## 
+    if not os.path.isfile(vfat_folder_dir+'/uboot.scr'):
+        print('--> Copy the default "uboot.script" parition')
+        if uboot_default_file_dir == '':
+            print('ERROR: There is no default u-boot script file avaibile!')
+            print('       Please insiert a own "uboot.script" file to')
+            print('       the VFAT/FAT partition')
+            sys.exit()
+        try:
+            shutil.copy2(uboot_default_file_dir,vfat_folder_dir+'/uboot.script')
+        except Exception as ex:
+            print('ERROR: Failed to copy the u-boot script file MSG: '+str(ex))
+        
+      
+
 #################################  Allow the user to import files to the partition folders  ###################################
     print('\n#############################################################################')
     print('#    Copy files to the partition folders to allow the pre-installment         #')
