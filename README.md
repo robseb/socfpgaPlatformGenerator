@@ -8,7 +8,3 @@ sudo apt-get update -y
 sudo apt-get install -y bison flex gcc-arm* libncurses-dev
 ````
 
-````bash
-git clone --recursive -j8 https://github.com/robseb/socfpgaPlatformGenerator.git
-````
-

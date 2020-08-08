@@ -25,7 +25,7 @@
 #   first Version 
 #
 
-version = "0.01"
+version = "0.02"
 
 #
 #
@@ -44,10 +44,12 @@ YOCTO_BASE_FOLDER         = 'poky'
 BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
 
 
-GITNAME                  = "socfpgaPlatformGenerator"
-GIT_SCRIPT_URL           = "https://github.com/robseb/socfpgaPlatformGenerator.git"
-GIT_U_BOOT_SOCFPGA_URL   = "https://github.com/altera-opensource/u-boot-socfpga"
+GITNAME                   = "socfpgaPlatformGenerator"
+GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
+GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
 GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2019.10" # default: master
+
+GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
 #
 # @brief default XML Blueprint file
@@ -88,8 +90,40 @@ u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/a
 u_boot_defconfig_list = ['socfpga_cyclone5_defconfig', 'socfpga_arria5_defconfig', \
                     'socfpga_arria10_defconfig']
 
-import os
+
+#
+#
+#
+############################################ Github clone function ###########################################
+#
+#
+#
 import sys
+
+if sys.platform =='linux':
+    try:
+        import git
+        from git import RemoteProgress
+
+    except ImportError as ex:
+        print('Msg: '+str(ex))
+        print('This Python Application requirers "git"')
+        print('Use following pip command to install it:')
+        print('$ pip3 install GitPython')
+        sys.exit()
+
+
+if sys.platform =='linux':
+    # @brief to show process bar during github clone
+    #
+    #
+    class CloneProgress(RemoteProgress):
+        def update(self, op_code, cur_count, max_count=None, message=''):
+            if message:
+                sys.stdout.write("\033[F")
+                print("    "+message)
+
+import os
 import time
 import io
 import re
@@ -106,42 +140,21 @@ from datetime import timedelta
 try:
     from LinuxBootImageFileGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
 except ModuleNotFoundError as ex:
-    print('ERROR: The LinuxBootImageGenerator is not available inside the cloned folder!')
-    print('       Delate the github folder and use following command ')
-    print('       to clone all required components:')
-    print(' $ git clone --recursive -j8 '+GIT_SCRIPT_URL+'\n')
-    sys.exit()
+    print('--> Cloning "LinuxBootImageFileGenerator" from GitHub')
+    print('       please wait...')
 
-if sys.platform =='linux':
     try:
-        import git
-        from git import RemoteProgress
-
-    except ImportError as ex:
-        print('Msg: '+str(ex))
-        print('This Python Application requirers "git"')
-        print('Use following pip command to install it:')
-        print('$ pip3 install GitPython')
+        git.Repo.clone_from(GIT_LINUXBOOTIMAGEGEN_URL, os.getcwd()+'/LinuxBootImageFileGenerator', branch='master', progress=CloneProgress())
+    except Exception as ex:
+        print('ERROR: The cloning failed! Error Msg.:'+str(ex))
         sys.exit()
 
-#
-#
-#
-############################################ Github clone function ###########################################
-#
-#
-#
-
-if sys.platform =='linux':
-    # @brief to show process bar during github clone
-    #
-    #
-
-    class CloneProgress(RemoteProgress):
-        def update(self, op_code, cur_count, max_count=None, message=''):
-            if message:
-                sys.stdout.write("\033[F")
-                print("    "+message)
+    if not os.path.isabs(os.getcwd()+'/LinuxBootImageFileGenerator'):
+        print('ERROR: Failed to clone "LinuxBootImageFileGenerator"')
+        print('       Check your network connection and try it again')
+        sys.exit()
+    
+    from LinuxBootImageFileGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
 
 
 ############################################                                ############################################
@@ -378,7 +391,11 @@ if __name__ == '__main__':
         print('       I am working on it...')
         sys.exit()
     print('     Device Name:"'+device_name_temp+'"') 
- 
+
+##################################### Update "LinuxBootImageFileGenerator" ####################################################
+    print('-> Pull the latest "LinuxBootImageFileGenerator" Version from GitHub!')
+    g = git.cmd.Git(os.getcwd()+'/LinuxBootImageFileGenerator')
+    g.pull()
 
 ############################### Create "software/bootloader" folder inside Quartus project  ###################################
     if not os.path.isdir(quartus_proj_top_dir+'/'+'software'):
@@ -415,10 +432,12 @@ if __name__ == '__main__':
             git.Repo.clone_from(GIT_U_BOOT_SOCFPGA_URL, u_boot_socfpga_dir, branch=GIT_U_BOOT_SOCFPGA_BRANCH, progress=CloneProgress())
         except Exception as ex:
             print('ERROR: The cloning failed! Error Msg.:'+str(ex))
+            print('       Check your network connection and try it again')
             sys.exit()
 
         if not os.path.isabs(u_boot_socfpga_dir):
             print('ERROR: Failed to clone u-boot-socfpga!')
+            print('       Check your network connection and try it again')
             sys.exit()
 
         print('       cloning done')
@@ -778,8 +797,14 @@ if __name__ == '__main__':
             raw_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
         elif part.type_hex=='b': # FAT
             vfat_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
+            if not part.comp_devicetree:
+                print('NOTE: The devicetree compilation is for the VFAT/FAT partition not enabled!')
+                print('      The script may not work propertly!')
         elif part.type_hex=='83': # LINUX
             ext_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
+            if not part.unzip:
+                print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
+                print('      The script may not work propertly!')
 
     # All folders there ?
     if raw_folder_dir =='':
@@ -881,11 +906,11 @@ if __name__ == '__main__':
         print('#                     Use this distribution for the build?                     #')
         print('--------------------------------------------------------------------------------')
         print('#                   --- Yocto Linux Distribution  ---                          #')
-        print('#    Directory: "'+yocto_device_dir+'"  #')
-        print('#    Modification Date: '+str(modification_time)+' #')
-        print('#    rootfs: "'+yocto_rootfs_name+'" #')
-        print('#    zImage: "'+yocto_zimage_name+'" #')
-        print('#    Devicetree: "'+yocto_devicetree_name+'" #')
+        print('#    Directory: "'+yocto_device_dir+'" ')
+        print('#    Modification Date: '+str(modification_time))
+        print('#    rootfs: "'+yocto_rootfs_name)
+        print('#    zImage: "'+yocto_zimage_name+'"')
+        print('#    Devicetree: "'+yocto_devicetree_name+'"')
         print('--------------------------------------------------------------------------------')
         print('#                M: No, copy file manually instat                              #')
         print('#                Q: Abort                                                      #')
@@ -994,9 +1019,6 @@ if __name__ == '__main__':
     if compress_output:
         print('---> Compress the output image as .zip')
         bootImageCreator.compressOutput(True,outputZipFileName)
-
-
-
 
 
         
