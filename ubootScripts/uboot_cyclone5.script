@@ -3,7 +3,7 @@
  #  Robin Sebastian (2020-06) 
  #
  echo ********************************************
- echo --- starting u-boot boot sequence scipt (u-boot.scr) ---
+ echo --- starting u-boot boot sequence scipt (boot.scr) ---
  echo -- for Intel Cyclone V SoC-FPGAs to boot rsYocto -- 
  echo --- by Robin Sebastian (https://github.com/robseb) ---
  echo --- Contact: git@robseb.de 
@@ -18,10 +18,10 @@ gpio set 53
 
  setenv bootimage zImage;
  # address to which the device tree will be loaded
- setenv fdtaddr 0x00000100
+ setenv fdtaddr 0x02000000
  
  echo --- Set the devicetree image --
- setenv fdtimage socfpga.dtb;
+ setenv fdtimage socfpga_cyclone5_socdk.dtb;
  
  echo --- set kernel boot arguments, then boot the kernel
  setenv mmcboot 'setenv bootargs mem=1024M console=ttyS0,115200 root=${mmcroot} rw rootwait; bootz ${loadaddr} - ${fdtaddr}';
@@ -49,11 +49,11 @@ gpio set 53
  echo --- Programming FPGA ---
  echo --- load FPGA config to memory
  
- # load rbf from FAT partition into memory
- fatload mmc 0:1 ${fpgadata} socfpga.rbf;
+#from FAT partition into memory
+fatload mmc 0:1 ${ramdisk_addr_r} socfpga.rbf
  
- echo --- write the FPGA configuration ---
- fpga load 0 ${fpgadata} ${filesize};
+echo --- write the FPGA configuration ---
+fpga load 0 ${ramdisk_addr_r} ${filesize}
  
  echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
  bridge enable;
@@ -63,5 +63,5 @@ gpio set 53
  run mmcload;
  
  echo --- set kernel boot arguments, then boot the kernel ---
- echo *** leaving the u-boot boot sequence scipt (u-boot.script) ***
+ echo *** leaving the u-boot boot sequence scipt (boot.script) ***
  run mmcboot;

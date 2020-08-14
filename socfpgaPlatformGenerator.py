@@ -25,7 +25,7 @@
 #   first Version 
 #
 
-version = "0.02"
+version = "0.03"
 
 #
 #
@@ -47,7 +47,7 @@ BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
 GITNAME                   = "socfpgaPlatformGenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2019.10" # default: master
+GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
@@ -78,6 +78,7 @@ intelsocfpga_blueprint_xml_file ='<?xml version="1.0" encoding = "UTF-8" ?>\n'+\
     '</LinuxDistroBlueprint>\n'
 
 socfpga_devices_list = ['cyclone5', 'arria5', 'arria10' ]
+socfpga_arch_list    = ['arm',      'arm',    'arm']
 
 # Device ID: 0=Cyclone5, 1=Arria5, 2=Arria10 
 device_id=0 
@@ -403,6 +404,7 @@ if __name__ == '__main__':
             uboot_default_file_dir=excpath+'/ubootScripts/'+name
     if uboot_default_file_dir =='':
         print('NOTE: No depping default u-boot script file available for this device!')
+    
 
 ##################################### Update "LinuxBootImageFileGenerator" ####################################################
     print('-> Pull the latest "LinuxBootImageFileGenerator" Version from GitHub!')
@@ -427,78 +429,35 @@ if __name__ == '__main__':
             print('ERROR: Failed to create the bootloader folder MSG:'+str(ex))
     else:
         bootloader_available = True
-
-####################################################### Clone "u-boot-socfpga" ################################################
     u_boot_socfpga_dir = quartus_bootloder_dir+'/'+'u-boot-socfpga'
-    if(os.path.isdir(u_boot_socfpga_dir)):
-        print('--> "u-boot-socfpga" is already available')
-        print('       Pull it from Github')
-        g = git.cmd.Git(u_boot_socfpga_dir)
-        g.pull()
-        
-    else:
-        print('--> Cloning "u-boot-socfpga" Version ('+GIT_U_BOOT_SOCFPGA_URL+')\n')
-        print('       please wait...')
-
-        try:
-            git.Repo.clone_from(GIT_U_BOOT_SOCFPGA_URL, u_boot_socfpga_dir, branch=GIT_U_BOOT_SOCFPGA_BRANCH, progress=CloneProgress())
-        except Exception as ex:
-            print('ERROR: The cloning failed! Error Msg.:'+str(ex))
-            print('       Check your network connection and try it again')
-            sys.exit()
-
-        if not os.path.isabs(u_boot_socfpga_dir):
-            print('ERROR: Failed to clone u-boot-socfpga!')
-            print('       Check your network connection and try it again')
-            sys.exit()
-
-        print('       cloning done')
-    
-################################################## Find the EDS Filter script ##############ä####################################
-    eds_filter_script_dir = '/'+'arch'+'/'+ \
-                            'arm'+'/'+'mach-socfpga'+'/'+'qts-filter.sh'
-    # Find the filter script
-    if not os.path.isfile(u_boot_socfpga_dir+eds_filter_script_dir):
-        print('ERROR: The EDS Filter script is not available on the default directory')
-        print('       "/arch/arm/mach-socfpga/qts-filter.sh"')
-        sys.exit()
-    # Find the BPS for the selected device inside u-boot
-    u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[device_id]
-    if not os.path.isdir(u_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
-        print('Error: The u-boot BSP QTS direcorory is for the device not available!')
-        print('       '+u_boot_bsp_qts_dir)
-        sys.exit()
-
-
 
 #################################### Setup u-boot with the Quartus Prime Settings  ################################################
 
-    # Is a new bootloader build necessary?
     bootloader_build_required =True
     if (bootloader_available and os.path.isfile(u_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp')):
-        modification_time = os.path.getmtime(u_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp') 
-        current_time =  datetime.now().timestamp()
+        #modification_time = os.path.getmtime(u_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp') 
+        #current_time =  datetime.now().timestamp()
 
         # Offset= 3 hour
-        if modification_time  + 3*60*60 > current_time:
-            bootloader_build_required = False
-            print('\n################################################################################')
-            print('#                                                                              #')
-            print('#                  Bootloader was created within 3 hours ago                   #')
-            print('#                                                                              #')
-            print('#                    Do you want to rebuild the bootloader?                    #')
-            print('#                                                                              #')
-            print('--------------------------------------------------------------------------------')
-            print('#    Y:              Yes, rebuild the bootloader                               #')
-            print('#    anything else:  No,  continue without rebuilding the bootloader           #')
-            print('#    Q:              Abort                                                     #')
-            print('------------------------------------------------------------------------------')
-            __wait2__ = input('Please type...')
+        #if modification_time  + 12*60*60 > current_time:
+        bootloader_build_required = False
+        print('\n################################################################################')
+        print('#                                                                              #')
+        print('#                            Bootloader is available                           #')
+        print('#                                                                              #')
+        print('#                    Do you want to rebuild the bootloader?                    #')
+        print('#                                                                              #')
+        print('--------------------------------------------------------------------------------')
+        print('#    Y:              Yes, rebuild the bootloader                               #')
+        print('#    anything else:  No,  continue without rebuilding the bootloader           #')
+        print('#    Q:              Abort                                                     #')
+        print('------------------------------------------------------------------------------')
+        __wait2__ = input('Please type...')
 
-            if __wait2__ =='q' or __wait2__=='Q':
-                sys.exit()
-            elif __wait2__ =='Y' or __wait2__=='y':
-                bootloader_build_required = True
+        if __wait2__ =='q' or __wait2__=='Q':
+            sys.exit()
+        elif __wait2__ =='Y' or __wait2__=='y':
+            bootloader_build_required = True
     '''
     Later update: Support for linaro build system 
     https://rocketboards.org/foswiki/Documentation/BuildingBootloader#Building_Linux_Kernel
@@ -509,8 +468,9 @@ if __name__ == '__main__':
     export ARCH=arm
     export CROSS_COMPILE=arm-linux-gnueabihf-
     '''
+    
 
-    # Build the bootloader
+################################################  Build the bootloader #####################################################
     if bootloader_build_required:
         print('--> Start the Intel Embedded Command Shell')
         try:
@@ -535,7 +495,47 @@ if __name__ == '__main__':
                 not os.path.isfile(quartus_proj_top_dir+'/software/bootloader/settings.bsp'):
                 print('ERROR: The BSP generation failed!')
                 sys.exit()
+            
+####################################################### Clone "u-boot-socfpga" ################################################
+            if(os.path.isdir(u_boot_socfpga_dir)):
+                print('--> "u-boot-socfpga" is already available')
+                print('       Pull it from Github')
+                g = git.cmd.Git(u_boot_socfpga_dir)
+                g.pull()
+                
+            else:
+                print('--> Cloning "u-boot-socfpga" Version ('+GIT_U_BOOT_SOCFPGA_URL+')\n')
+                print('       please wait...')
 
+                try:
+                    git.Repo.clone_from(GIT_U_BOOT_SOCFPGA_URL, u_boot_socfpga_dir, branch=GIT_U_BOOT_SOCFPGA_BRANCH, progress=CloneProgress())
+                except Exception as ex:
+                    print('ERROR: The cloning failed! Error Msg.:'+str(ex))
+                    print('       Check your network connection and try it again')
+                    sys.exit()
+
+                if not os.path.isabs(u_boot_socfpga_dir):
+                    print('ERROR: Failed to clone u-boot-socfpga!')
+                    print('       Check your network connection and try it again')
+                    sys.exit()
+
+                print('       cloning done')
+
+################################################## Find the EDS Filter script ##############ä####################################
+            eds_filter_script_dir = '/'+'arch'+'/'+ \
+                                    'arm'+'/'+'mach-socfpga'+'/'+'qts-filter.sh'
+            # Find the filter script
+            if not os.path.isfile(u_boot_socfpga_dir+eds_filter_script_dir):
+                print('ERROR: The EDS Filter script is not available on the default directory')
+                print('       "/arch/arm/mach-socfpga/qts-filter.sh"')
+                sys.exit()
+            # Find the BPS for the selected device inside u-boot
+            u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[device_id]
+            if not os.path.isdir(u_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
+                print('Error: The u-boot BSP QTS direcorory is for the device not available!')
+                print('       '+u_boot_bsp_qts_dir)
+                sys.exit()
+####################################################### Run EDS filter script ################################################
             print('--> Run the Intel EDS Filter script')
             with subprocess.Popen(EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
                 time.sleep(DELAY_MS)
@@ -579,17 +579,24 @@ if __name__ == '__main__':
         print('#   '+u_boot_socfpga_dir)
         print('--------------------------------------------------------------------------------')
         print('#                M: Start menuconfig for "u-boot-socfpga"                      #')
+        print('#                D: Start menuconfig for "u-boot-socfpga" without defconfig    #')
         print('#                Q: Abort                                                      #')
         print('#    anything else: continue with compiling "u-boot-socfpga"                   #')
         print('------------------------------------------------------------------------------')
         __wait__ = input('Type anything to continue ... ')
 
         start_menuconfig = False 
+        run_defconfig =True
+
         if __wait__ =='q' or __wait__=='Q':
             sys.exit()
         
         if __wait__ =='m' or __wait__=='M':
             start_menuconfig = True
+
+        if __wait__ =='d' or __wait__=='D':
+            start_menuconfig = True
+            run_defconfig = False
 
     ###################################################   Build u-boot  ################################################
         print('--> Start the Intel Embedded Command Shell')
@@ -601,19 +608,22 @@ if __name__ == '__main__':
                 b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
                 edsCmdShell.stdin.write(b) 
 
-                b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8')
+                b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8') # arm-linux-gnueabihf-
                 edsCmdShell.stdin.write(b) 
 
                 b = bytes('export ARCH=arm \n','utf-8')
                 edsCmdShell.stdin.write(b) 
 
-                b = bytes('make distclean \n','utf-8')
-                edsCmdShell.stdin.write(b) 
-
-                b = bytes('make '+u_boot_defconfig_list[device_id]+'\n','utf-8')   
-                edsCmdShell.stdin.write(b) 
-
+                if run_defconfig: 
+                    # Clean make
+                    b = bytes('make distclean \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
+                    
+                    # Make diskclean 
+                    b = bytes('make '+u_boot_defconfig_list[device_id]+'\n','utf-8')   
+                    edsCmdShell.stdin.write(b) 
                 if not start_menuconfig: 
+                    # Make 
                     b = bytes('make -j 24 \n','utf-8')
                     edsCmdShell.stdin.write(b) 
 
@@ -647,7 +657,10 @@ if __name__ == '__main__':
             # Run the shell script to allow the user to use menuconfig
             print('--> Starting menuconfig for "u-boot-socfpga"')
             os.system('chmod +x menuconfig.sh  && sh  menuconfig.sh')
-            __wait3__ = input('Type anything to continue ... ')
+            __wait3__ = input('Type anything to continue (Q= Abort)... ')
+
+            if __wait3__ == 'q' or __wait3__ == 'Q':
+                sys.exit()
 
             # Remove the shell script 
             if os.path.isfile('menuconfig.sh'):
@@ -732,6 +745,7 @@ if __name__ == '__main__':
             offset = str(part.get('offset'))
             devicetree = str(part.get('devicetree'))
             unzip_str = str(part.get('unzip'))
+            comp_ubootscr = str(part.get('ubootscript'))
         except Exception as ex:
             print(' ERROR: XML File decoding failed!')
             print(' Msg.: '+str(ex))
@@ -746,7 +760,7 @@ if __name__ == '__main__':
             unzip = True
 
         try:
-            partitionList.append(Partition(True,id,type,size,offset,comp_devicetree,unzip))
+            partitionList.append(Partition(True,id,type,size,offset,comp_devicetree,unzip,comp_ubootscr))
         except Exception as ex:
             print(' ERROR: Partition data import failed!')
             print(' Msg.: '+str(ex))
@@ -810,14 +824,19 @@ if __name__ == '__main__':
         elif part.type_hex=='b': # FAT
             vfat_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
             if not part.comp_devicetree:
-                print('NOTE: The devicetree compilation is for the VFAT/FAT partition not enabled!')
-                print('      The script may not work propertly!')
+                print('NOTE:  The devicetree compilation is for the VFAT/FAT partition not enabled!')
+                print('       The script may not work propertly!')
+            if not part.comp_ubootscript == socfpga_arch_list[device_id]:
+                print('NOTE:  Compilation of the u-boot script is for the ext3/LINUX partition\n'+ \
+                      '       is not enabled or or the wrong architecture is selected!\n'+ \
+                      '       Use: ubootscript="'+socfpga_arch_list[device_id]+'"')
+                print('       The script may not work propertly!')
+
         elif part.type_hex=='83': # LINUX
             ext_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
             if not part.unzip_file:
                 print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
                 print('      The script may not work propertly!')
-
     # All folders there ?
     if raw_folder_dir =='':
         print('ERROR: The chosen partition table has now RAW/NONE-partition.')
@@ -959,23 +978,29 @@ if __name__ == '__main__':
                 # NOTE: Work required!!
 
 ################################## Create the bootloader configuration file "extlinux.conf" ################################### 
-    if not os.path.isfile(vfat_folder_dir+'/extlinux.conf'):
+    '''
+    if not os.path.isfile(vfat_folder_dir+'/extlinux/extlinux.conf'):
         print('--> Create boot configuration file "extlinux.conf" ')
-        with open(vfat_folder_dir+'/extlinux.conf', "a") as f:
-            f.write('KERNEL ../zImage\n')
-            f.write('FDT ../socfpga_cy5.dtb\n')
-            f.write('APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
+        if not os.path.isdir(vfat_folder_dir+'/extlinux'):
+            os.mkdir(vfat_folder_dir+'/extlinux')
 
-############################################ Create the u-boot script "uboot.script" ########################################## 
-    if not os.path.isfile(vfat_folder_dir+'/uboot.scr'):
-        print('--> Copy the default "uboot.script" parition')
+        with open(vfat_folder_dir+'/extlinux/extlinux.conf', "a") as f:
+            f.write('LABEL Linux Default\n')
+            f.write('   KERNEL ../zImage\n')
+            f.write('   FDT ../socfpga_cyclone5_socdk.dtb\n')
+            f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
+    '''
+
+############################################ Create the u-boot script "boot.script" ########################################## 
+    if not os.path.isfile(vfat_folder_dir+'/boot.scr'):
+        print('--> Copy the default "boot.script" parition')
         if uboot_default_file_dir == '':
             print('ERROR: There is no default u-boot script file avaibile!')
-            print('       Please insiert a own "uboot.script" file to')
+            print('       Please insiert a own "boot.script" file to')
             print('       the VFAT/FAT partition')
             sys.exit()
         try:
-            shutil.copy2(uboot_default_file_dir,vfat_folder_dir+'/uboot.script')
+            shutil.copy2(uboot_default_file_dir,vfat_folder_dir+'/boot.script')
         except Exception as ex:
             print('ERROR: Failed to copy the u-boot script file MSG: '+str(ex))
         
