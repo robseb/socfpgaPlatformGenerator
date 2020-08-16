@@ -1,4 +1,4 @@
-#!/usr/bin/env Python
+#!/usr/bin/env python3
 #
 #            ########   ######     ##    ##  #######   ######  ########  #######                  
 #            ##     ## ##    ##     ##  ##  ##     ## ##    ##    ##    ##     ##           
@@ -47,7 +47,7 @@ BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
 GITNAME                   = "socfpgaPlatformGenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master
+GIT_U_BOOT_SOCFPGA_BRANCH = "origin/socfpga_v2020.04" # default: master
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
@@ -90,7 +90,6 @@ u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/a
 # "u-boot-socfpga deconfig" file name for make (u-boot-socfpga/configs/)
 u_boot_defconfig_list = ['socfpga_cyclone5_defconfig', 'socfpga_arria5_defconfig', \
                     'socfpga_arria10_defconfig']
-
 
 #
 #
@@ -137,6 +136,7 @@ import glob
 from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
+import mmap
 
 try:
     from LinuxBootImageFileGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
@@ -305,6 +305,12 @@ if __name__ == '__main__':
                 qpf_file_name =file
                 break
 
+    # Find the Quartus  (.sof) file 
+    sof_file_name = ''
+    for file in os.listdir(quartus_proj_top_dir):
+            if ".sof" in file:
+                sof_file_name =file
+                break
     # Find the Platform Designer (.qsys) file  
     qsys_file_name = ''
     for file in os.listdir(quartus_proj_top_dir):
@@ -313,7 +319,7 @@ if __name__ == '__main__':
                 break
  
     # Find the Platform Designer folder
-    if qsys_file_name=='' or qpf_file_name=='':
+    if qsys_file_name=='' or qpf_file_name=='' or sof_file_name=='':
         print('\nERROR: The script was not executed inside the cloned Github- and Quartus Prime project folder!')
         print('       Please clone this script with its folder from Github,')
         print('       copy it to the top folder of your Quartus project and execute the script')
@@ -328,6 +334,7 @@ if __name__ == '__main__':
         print('       |     L-- socfpgaPlatformGenerator <<<----')
         print('       |         L-- socfpgaPlatformGenerator.py')
         print('       Note: File names can be chosen freely\n')
+        print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
         sys.exit()
 
     # Find the handoff folder
@@ -344,6 +351,7 @@ if __name__ == '__main__':
             handoff_folder_name = folder
             if folder_found:
                 print('ERROR: More then one folder inside the Quartus handoff folder "'+handoff_folder_name+'" found! Please delate one!')
+                print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
                 sys.exit()
             folder_found = True
     handoff_folder_name = handoff_folder_start_name+'/'+handoff_folder_name
@@ -359,6 +367,7 @@ if __name__ == '__main__':
             break
     if not handoff_xml_found:
         print('ERROR: The "hps.xml" file inside the handoff folder was not found!')
+        print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
         sys.exit()
 
     # Load the "hps.xml" file to read the device name
@@ -870,7 +879,7 @@ if __name__ == '__main__':
         shutil.copy2(u_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
             raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
     except Exception as ex:
-        print('EROR: Failed to copy the bootloader file! MSG: '+str(ex))
+        print('ERORR: Failed to copy the bootloader file! MSG: '+str(ex))
         sys.exit()
 
     print('     = Done')
@@ -1003,8 +1012,56 @@ if __name__ == '__main__':
             shutil.copy2(uboot_default_file_dir,vfat_folder_dir+'/boot.script')
         except Exception as ex:
             print('ERROR: Failed to copy the u-boot script file MSG: '+str(ex))
-        
-      
+  
+####################################### Generate FPGA binary configuration file  #######################################
+    print(' --> Check if it is necessary to generate a FPGA configuration file ')
+    # Check if a FPGA configuration binary genration is necessary
+    # -> Only in case the u-boot script was configured to write the FPGA configuration  
+    if os.path.isfile(vfat_folder_dir+'/boot.script'):
+        print('    Scan VFAT partition for a ".rbf" FPGA config file')
+        rbf_config_name_found =''
+        rbf_config_found =False
+        gen_fpga_conf=False
+        # 1. Find a rbf file inside the VFAT partition
+        for file in os.listdir(vfat_folder_dir):
+            if os.path.isfile(vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
+                if rbf_config_found:
+                    print('Note: There are more then one ".rbf" configuration file')
+                    print('      inside the VFAT partition avalibile!')
+                    print('      A new generation of the FPGA configuration is not posibile')
+                    rbf_config_name_found=''
+                else:
+                    rbf_config_name_found=file
+                    rbf_config_found = True
+        # 2. Check that this file is used inside the u-boot script
+        if rbf_config_found and not rbf_config_name_found=='':
+            print('    The file "'+rbf_config_name_found+'" found')
+            b = bytes(rbf_config_name_found, 'utf-8')
+            with open(vfat_folder_dir+'/boot.script', 'rb', 0) as file, \
+            mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
+                if s.find(b) != -1:
+                    gen_fpga_conf = True
+
+        # 3. Generate the FPGA configuration file
+        if gen_fpga_conf:
+            try:
+                with subprocess.Popen(EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                    time.sleep(DELAY_MS)
+                    print(' --> Generate a new FPGA configuration file')
+                    b = bytes(' cd '+quartus_proj_top_dir+' \n', 'utf-8')
+                    edsCmdShell.stdin.write(b) 
+
+                    b = bytes('quartus_cpf -c '+sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                    edsCmdShell.stdin.write(b) 
+
+                    edsCmdShell.communicate()
+                    time.sleep(DELAY_MS)
+                
+            except Exception as ex:
+                print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
+                sys.exit()
+        else:
+            print('NOTE: It was no new FPGA configuration file generated!')
 
 #################################  Allow the user to import files to the partition folders  ###################################
     print('\n#############################################################################')
@@ -1086,7 +1143,6 @@ if __name__ == '__main__':
 
 
 
- 
     print('\nNOTE: WORK IN PROCESS! THE DEVELOPMENT FOR THIS SCRIPT IS NOT DONE!\n')
 ############################################################ Goodby screen  ###################################################
     print('\n################################################################################')

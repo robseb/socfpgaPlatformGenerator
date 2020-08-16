@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding = "UTF-8" ?>
 <!-- Linux Distribution Blueprint XML file -->
-<!-- Used by the Python script "LinuxDistro2Image.py -->
+<!-- Used by the Python script "LinuxDistro2Image.py" -->
 <!-- to create a custom Linux boot image file -->
 <!-- Description: -->
 <!-- item "partition" describes a partition on the final image file-->
@@ -15,8 +15,12 @@
 <!-- 	L 	    => Yes: Y or No: N -->
 <!-- L "unzip"     => Unzip a compressed file if available (Top folder only) -->
 <!-- 	L 	    => Yes: Y or No: N -->
+<!-- L "ubootscript"  => Compile the u-boot script file ("uboot.script") -->
+<!-- 	L 	    => Yes, for the ARMv7A (32-bit) architecture ="arm" -->
+<!-- 	L 	    => Yes, for the ARMv8A (64-bit) architecture ="arm64" -->
+<!-- 	L 	    => No ="" -->
 <LinuxDistroBlueprint>
-<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" />
-<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" />
-<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" />
+<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" ubootscript="arm" />
+<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" ubootscript="" />
+<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" ubootscript="" />
 </LinuxDistroBlueprint>
