@@ -47,7 +47,7 @@ BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
 GITNAME                   = "socfpgaPlatformGenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH = "origin/socfpga_v2020.04" # default: master
+GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
@@ -91,6 +91,10 @@ u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/a
 u_boot_defconfig_list = ['socfpga_cyclone5_defconfig', 'socfpga_arria5_defconfig', \
                     'socfpga_arria10_defconfig']
 
+limaro_version_list = ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf']
+limaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz']
+
+gcc_toolchain_path_list= ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH']
 #
 #
 #
@@ -104,13 +108,15 @@ if sys.platform =='linux':
     try:
         import git
         from git import RemoteProgress
+        import wget
 
     except ImportError as ex:
         print('Msg: '+str(ex))
         print('This Python Application requirers "git"')
         print('Use following pip command to install it:')
-        print('$ pip3 install GitPython')
+        print('$ pip3 install GitPython wget')
         sys.exit()
+    
 
 
 if sys.platform =='linux':
@@ -240,7 +246,7 @@ if __name__ == '__main__':
         EDS_Folder = EDS_Folder +'/'+ str(highestVer)   
 
         if (not(os.path.realpath(EDS_Folder))):
-            print('ERROR: No vaild Intel EDS Installation Folder was found!')
+            print('ERROR: No valid Intel EDS Installation Folder was found!')
             sys.exit()
 
         if(highestVer < 19): 
@@ -303,6 +309,7 @@ if __name__ == '__main__':
     for file in os.listdir(quartus_proj_top_dir):
             if ".qpf" in file:
                 qpf_file_name =file
+                print(qpf_file_name)
                 break
 
     # Find the Quartus  (.sof) file 
@@ -310,12 +317,14 @@ if __name__ == '__main__':
     for file in os.listdir(quartus_proj_top_dir):
             if ".sof" in file:
                 sof_file_name =file
+                print(sof_file_name)
                 break
     # Find the Platform Designer (.qsys) file  
     qsys_file_name = ''
     for file in os.listdir(quartus_proj_top_dir):
             if ".qsys" in file and not ".qsys_edit" in file:
                 qsys_file_name =file
+                print(qsys_file_name)
                 break
  
     # Find the Platform Designer folder
@@ -393,12 +402,13 @@ if __name__ == '__main__':
     # Convert Device name
     if device_name_temp == 'Cyclone V':
         device_id = 0
-    elif device_name_temp == 'Arria V':
-        device_id = 1
-    elif device_name_temp == 'Arria 10':
-        device_id = 2
-    ## NOTE: ADD ARRIA 10 SUPPORT HERE 
-
+        '''
+        elif device_name_temp == 'Arria V':
+            device_id = 1
+        elif device_name_temp == 'Arria 10':
+            device_id = 2
+        '''
+        ## NOTE: ADD ARRIA V/10 SUPPORT HERE 
     else:
         print('Error: Your Device ('+device_name_temp+') is not supported right now!')
         print('       I am working on it...')
@@ -439,16 +449,154 @@ if __name__ == '__main__':
     else:
         bootloader_available = True
     u_boot_socfpga_dir = quartus_bootloder_dir+'/'+'u-boot-socfpga'
+###############################################   Create SD-CARD folder  ##############################################
+    # Create the parttition blueprint xml file 
+    if os.path.exists('SocFPGABlueprint.xml'):
+        # Check that the SocFPGABlueprint XML file looks valid
+        print('---> The Linux Distribution blueprint XML file exists')
+    else:
+        print(' ---> Creating a new Linux Distribution blueprint XML file')
+        with open('SocFPGABlueprint.xml',"w") as f: 
+            f.write(intelsocfpga_blueprint_xml_file)
+    
+
+    ############################################ Read the XML Blueprint file  ###########################################
+    ####################################### & Process the settings of a partition   ####################################
+    print('---> Read the XML blueprint file ')
+    try:
+        tree = ET.parse('SocFPGABlueprint.xml') 
+        root = tree.getroot()
+    except Exception as ex:
+        print(' ERROR: Failed to prase SocFPGABlueprint.xml file!')
+        print(' Msg.: '+str(ex))
+        sys.exit()
+    
+    # Load the partition table of XML script 
+    print('---> Load the items of XML file ')
+    partitionList= []
+
+    for part in root.iter('partition'):
+        try:
+            id = str(part.get('id'))
+            type = str(part.get('type'))
+            size = str(part.get('size'))
+            offset = str(part.get('offset'))
+            devicetree = str(part.get('devicetree'))
+            unzip_str = str(part.get('unzip'))
+            comp_ubootscr = str(part.get('ubootscript'))
+        except Exception as ex:
+            print(' ERROR: XML File decoding failed!')
+            print(' Msg.: '+str(ex))
+            sys.exit()
+
+        comp_devicetree =False
+        if devicetree == 'Y' or devicetree == 'y':
+            comp_devicetree = True
+
+        unzip =False
+        if unzip_str == 'Y' or unzip_str == 'y':
+            unzip = True
+
+        try:
+            partitionList.append(Partition(True,id,type,size,offset,comp_devicetree,unzip,comp_ubootscr))
+        except Exception as ex:
+            print(' ERROR: Partition data import failed!')
+            print(' Msg.: '+str(ex))
+            sys.exit()
+    
+    # Add a datecode to the output file names
+    now = datetime.now()
+    dt_string = now.strftime("%Y%m%d_%H%M")
+
+    # Use the default name "SocfpgaLinux.img" as output file name
+    imageFileName   = "SocfpgaLinux"+dt_string+".img"
+    outputZipFileName= "SocfpgaLinux"+dt_string+".zip"
+
+    ####################################### Check if the partition folders are already available  #######################################
+
+    # Generate working folder names for every partition
+    working_folder_pat = []
+    for part in partitionList:
+        working_folder_pat.append(part.giveWorkingFolderName(True))
+
+    image_folder_name = 'Image_partitions'
+    create_new_folders = True
+
+    # Check if the primary partition folder exists
+    if os.path.isdir(image_folder_name):
+        if not len(os.listdir(image_folder_name)) == 0:
+            # Check that all partition folders exist
+            for file in os.listdir(image_folder_name):
+                if not file in working_folder_pat:
+                    print('ERROR:  The existing "'+image_folder_name+'" Folder is not compatible with this configuration!')
+                    print('        Please delete or rename the folder "'+image_folder_name+'" to allow the script')
+                    print('        to generate a matching folder structure for your configuration')
+                    sys.exit()  
+            create_new_folders = False
+    else: 
+        try:
+            os.makedirs(image_folder_name)
+        except Exception as ex:
+            print(' ERROR: Failed to create the image import folder on this directory!')
+            print(' Msg.: '+str(ex))
+            sys.exit()
+###################################### Create new import folders for every partition   #######################################
+    if create_new_folders:
+        for folder in working_folder_pat:
+            try:
+                os.makedirs(image_folder_name+'/'+folder)
+            except Exception as ex:
+                print(' ERROR: Failed to create the partition import folder on this directory!')
+                print(' Msg.: '+str(ex))
+                sys.exit()
+
+################################### Check that all required Partitions are available  ####################################
+    raw_folder_dir =''
+    vfat_folder_dir=''
+    ext_folder_dir=''
+
+    for part in partitionList:
+        if part.type_hex=='a2':
+            raw_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
+        elif part.type_hex=='b': # FAT
+            vfat_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
+            if not part.comp_devicetree:
+                print('NOTE:  The devicetree compilation is for the VFAT/FAT partition not enabled!')
+                print('       The script may not work propertly!')
+            if not part.comp_ubootscript == socfpga_arch_list[device_id]:
+                print('NOTE:  Compilation of the u-boot script is for the ext3/LINUX partition\n'+ \
+                      '       is not enabled or or the wrong architecture is selected!\n'+ \
+                      '       Use: ubootscript="'+socfpga_arch_list[device_id]+'"')
+                print('       The script may not work propertly!')
+
+        elif part.type_hex=='83': # LINUX
+            ext_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
+            if not part.unzip_file:
+                print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
+                print('      The script may not work propertly!')
+    # All folders there ?
+    if raw_folder_dir =='':
+        print('ERROR: The chosen partition table has now RAW/NONE-partition.')
+        print('       That is necessary for the bootloader')
+        sys.exit()
+    if vfat_folder_dir =='':
+        print('ERROR: The chosen partition table has now VFAT-partition.')
+        print('       That is necessary for the Kernel image')
+        sys.exit()
+    if ext_folder_dir =='':
+        print('ERROR: The chosen partition table has now EXT-partition.')
+        print('       That is necessary for the rootfs')
+        sys.exit()
+
+ 
+
 
 #################################### Setup u-boot with the Quartus Prime Settings  ################################################
 
     bootloader_build_required =True
-    if (bootloader_available and os.path.isfile(u_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp')):
-        #modification_time = os.path.getmtime(u_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp') 
-        #current_time =  datetime.now().timestamp()
+    print(vfat_folder_dir+'/'+'u-boot-with-spl.sfp')
+    if (bootloader_available and os.path.isfile(raw_folder_dir+'/'+'u-boot-with-spl.sfp')):
 
-        # Offset= 3 hour
-        #if modification_time  + 12*60*60 > current_time:
         bootloader_build_required = False
         print('\n################################################################################')
         print('#                                                                              #')
@@ -467,20 +615,55 @@ if __name__ == '__main__':
             sys.exit()
         elif __wait2__ =='Y' or __wait2__=='y':
             bootloader_build_required = True
-    '''
-    Later update: Support for linaro build system 
-    https://rocketboards.org/foswiki/Documentation/BuildingBootloader#Building_Linux_Kernel
 
-    wget https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-    tar xf gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz
-    export PATH=`pwd`/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin:$PATH
-    export ARCH=arm
-    export CROSS_COMPILE=arm-linux-gnueabihf-
-    '''
-    
+################################################  Install the Linaro toolchain  #####################################################
+    if bootloader_build_required:
+        toolchain_dir = excpath+'/toolchain'
+        print('--> Check if the linaro toolchain is installed')
+        if not os.path.isdir(toolchain_dir+'/'+limaro_version_list[device_id]):
+            if not os.path.isdir(toolchain_dir):
+                os.mkdir(toolchain_dir)
+            
+            if not os.path.isfile(toolchain_dir+'/'+limaro_version_list[device_id]+'.tar.xz'):
+                print('--> Download the linaro toolchain "'+limaro_version_list[device_id]+'"')
+                try:
+                    wget.download(limaro_url_list[device_id], out=toolchain_dir)
+                except Exception as ex:
+                    print('ERROR: Failed to download with wget! MSG:'+str(ex))
+                    print('       Download URL: "'+limaro_url_list[device_id]+'"')
+                    sys.exit()
+            if os.path.isfile(toolchain_dir+'/'+limaro_version_list[device_id]+'.tar.xz'):
+                print('--> Unpackage the linaro toolchain archive file')
+                try:
+                    os.system('tar xf '+toolchain_dir+'/'+ \
+                            limaro_version_list[device_id]+'.tar.xz -C '+toolchain_dir)
+                except subprocess.CalledProcessError:
+                    print('ERROR: Failed to unpackage the linaro toolchain!')
+                    sys.exit()
+                print('    == Done')
+                print('--> Remove the limaro archive file')
+                try:
+                   shutil.rmtree(toolchain_dir+'/'+ \
+                            limaro_version_list[device_id]+'.tar.xz')
+                except Exception:
+                    print('ERROR: Failed to remove the limaro archive file')
+                print('    == Done')
+
+            if not os.path.isdir(toolchain_dir+'/'+limaro_version_list[device_id]):
+                print('ERROR: The download or the unpackage of the linaro toolchain failed!')
+                print('       Download URL: "'+limaro_url_list[device_id]+'"')
+                sys.exit()
+        else:
+            print('    The linaro toolchain in Version "'+limaro_version_list[device_id]+ \
+                    '" is installed')
+
+        # Define the EXPORT value to the toolchain path
+        export_path_cmd ='export PATH='+'`pwd`/toolchain/'+gcc_toolchain_path_list[device_id]+'\n'
+
+        
 
 ################################################  Build the bootloader #####################################################
-    if bootloader_build_required:
+    
         print('--> Start the Intel Embedded Command Shell')
         try:
             # Create the BSP package for the device with the Intel EDS shell
@@ -617,7 +800,10 @@ if __name__ == '__main__':
                 b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
                 edsCmdShell.stdin.write(b) 
 
-                b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8') # arm-linux-gnueabihf-
+                b =bytes(export_path_cmd,'utf-8')
+                edsCmdShell.stdin.write(b) 
+     
+                b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8')
                 edsCmdShell.stdin.write(b) 
 
                 b = bytes('export ARCH=arm \n','utf-8')
@@ -687,6 +873,9 @@ if __name__ == '__main__':
                     b = bytes(' cd '+quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n', 'utf-8')
                     edsCmdShell.stdin.write(b) 
 
+                    b =bytes(export_path_cmd,'utf-8')
+                    edsCmdShell.stdin.write(b) 
+
                     b = bytes('export CROSS_COMPILE=arm-linux-gnueabihf- \n','utf-8')
                     edsCmdShell.stdin.write(b) 
 
@@ -720,146 +909,7 @@ if __name__ == '__main__':
         print('--> "u-boot-socfpga" build was successfully')
     # u-boot build
 
-    ###############################################   Create SD-CARD folder  ##############################################
-    # Create the parttition blueprint xml file 
-    if os.path.exists('SocFPGABlueprint.xml'):
-        # Check that the SocFPGABlueprint XML file looks valid
-        print('---> The Linux Distribution blueprint XML file exists')
-    else:
-        print(' ---> Creating a new Linux Distribution blueprint XML file')
-        with open('SocFPGABlueprint.xml',"w") as f: 
-            f.write(intelsocfpga_blueprint_xml_file)
-    
-
-    ############################################ Read the XML Blueprint file  ###########################################
-    ####################################### & Process the settings of a partition   ####################################
-    print('---> Read the XML blueprint file ')
-    try:
-        tree = ET.parse('SocFPGABlueprint.xml') 
-        root = tree.getroot()
-    except Exception as ex:
-        print(' ERROR: Failed to prase SocFPGABlueprint.xml file!')
-        print(' Msg.: '+str(ex))
-        sys.exit()
-    
-    # Load the partition table of XML script 
-    print('---> Load the items of XML file ')
-    partitionList= []
-
-    for part in root.iter('partition'):
-        try:
-            id = str(part.get('id'))
-            type = str(part.get('type'))
-            size = str(part.get('size'))
-            offset = str(part.get('offset'))
-            devicetree = str(part.get('devicetree'))
-            unzip_str = str(part.get('unzip'))
-            comp_ubootscr = str(part.get('ubootscript'))
-        except Exception as ex:
-            print(' ERROR: XML File decoding failed!')
-            print(' Msg.: '+str(ex))
-            sys.exit()
-
-        comp_devicetree =False
-        if devicetree == 'Y' or devicetree == 'y':
-            comp_devicetree = True
-
-        unzip =False
-        if unzip_str == 'Y' or unzip_str == 'y':
-            unzip = True
-
-        try:
-            partitionList.append(Partition(True,id,type,size,offset,comp_devicetree,unzip,comp_ubootscr))
-        except Exception as ex:
-            print(' ERROR: Partition data import failed!')
-            print(' Msg.: '+str(ex))
-            sys.exit()
-    
-    # Add a datecode to the output file names
-    now = datetime.now()
-    dt_string = now.strftime("%Y%m%d_%H%M")
-
-    # Use the default name "SocfpgaLinux.img" as output file name
-    imageFileName   = "SocfpgaLinux"+dt_string+".img"
-    outputZipFileName= "SocfpgaLinux"+dt_string+".zip"
-
-    ####################################### Check if the partition folders are already available  #######################################
-
-    # Generate working folder names for every partition
-    working_folder_pat = []
-    for part in partitionList:
-        working_folder_pat.append(part.giveWorkingFolderName(True))
-
-    image_folder_name = 'Image_partitions'
-    create_new_folders = True
-
-    # Check if the primary partition folder exists
-    if os.path.isdir(image_folder_name):
-        if not len(os.listdir(image_folder_name)) == 0:
-            # Check that all partition folders exist
-            for file in os.listdir(image_folder_name):
-                if not file in working_folder_pat:
-                    print('ERROR:  The existing "'+image_folder_name+'" Folder is not compatible with this configuration!')
-                    print('        Please delete or rename the folder "'+image_folder_name+'" to allow the script')
-                    print('        to generate a matching folder structure for your configuration')
-                    sys.exit()  
-            create_new_folders = False
-    else: 
-        try:
-            os.makedirs(image_folder_name)
-        except Exception as ex:
-            print(' ERROR: Failed to create the image import folder on this directory!')
-            print(' Msg.: '+str(ex))
-            sys.exit()
-
-###################################### Create new import folders for every partition   #######################################
-    if create_new_folders:
-        for folder in working_folder_pat:
-            try:
-                os.makedirs(image_folder_name+'/'+folder)
-            except Exception as ex:
-                print(' ERROR: Failed to create the partition import folder on this directory!')
-                print(' Msg.: '+str(ex))
-                sys.exit()
-
-################################### Check that all required Partitions are available  ####################################
-    raw_folder_dir =''
-    vfat_folder_dir=''
-    ext_folder_dir=''
-
-    for part in partitionList:
-        if part.type_hex=='a2':
-            raw_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
-        elif part.type_hex=='b': # FAT
-            vfat_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
-            if not part.comp_devicetree:
-                print('NOTE:  The devicetree compilation is for the VFAT/FAT partition not enabled!')
-                print('       The script may not work propertly!')
-            if not part.comp_ubootscript == socfpga_arch_list[device_id]:
-                print('NOTE:  Compilation of the u-boot script is for the ext3/LINUX partition\n'+ \
-                      '       is not enabled or or the wrong architecture is selected!\n'+ \
-                      '       Use: ubootscript="'+socfpga_arch_list[device_id]+'"')
-                print('       The script may not work propertly!')
-
-        elif part.type_hex=='83': # LINUX
-            ext_folder_dir=excpath+'/'+image_folder_name+'/'+part.giveWorkingFolderName(False)
-            if not part.unzip_file:
-                print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
-                print('      The script may not work propertly!')
-    # All folders there ?
-    if raw_folder_dir =='':
-        print('ERROR: The chosen partition table has now RAW/NONE-partition.')
-        print('       That is necessary for the bootloader')
-        sys.exit()
-    if vfat_folder_dir =='':
-        print('ERROR: The chosen partition table has now VFAT-partition.')
-        print('       That is necessary for the Kernel image')
-        sys.exit()
-    if ext_folder_dir =='':
-        print('ERROR: The chosen partition table has now EXT-partition.')
-        print('       That is necessary for the rootfs')
-        sys.exit()
-
+   
 
 ####################################### Copy the bootloader files to the partition #######################################
     print(' --> Copy the bootloader file "'+BOOTLOADER_FILE_NAME+'" to the RAW partition')
@@ -875,12 +925,13 @@ if __name__ == '__main__':
         sys.exit()
     
     # Copy the bootloader file 
-    try:
-        shutil.copy2(u_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
-            raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
-    except Exception as ex:
-        print('ERORR: Failed to copy the bootloader file! MSG: '+str(ex))
-        sys.exit()
+    if bootloader_build_required:
+        try:
+            shutil.copy2(u_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
+                raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
+        except Exception as ex:
+            print('ERORR: Failed to copy the bootloader file! MSG: '+str(ex))
+            sys.exit()
 
     print('     = Done')
 
@@ -987,7 +1038,7 @@ if __name__ == '__main__':
                 # NOTE: Work required!!
 
 ################################## Create the bootloader configuration file "extlinux.conf" ################################### 
-    '''
+    
     if not os.path.isfile(vfat_folder_dir+'/extlinux/extlinux.conf'):
         print('--> Create boot configuration file "extlinux.conf" ')
         if not os.path.isdir(vfat_folder_dir+'/extlinux'):
@@ -998,7 +1049,7 @@ if __name__ == '__main__':
             f.write('   KERNEL ../zImage\n')
             f.write('   FDT ../socfpga_cyclone5_socdk.dtb\n')
             f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
-    '''
+    
 
 ############################################ Create the u-boot script "boot.script" ########################################## 
     if not os.path.isfile(vfat_folder_dir+'/boot.scr'):
@@ -1033,7 +1084,7 @@ if __name__ == '__main__':
                 else:
                     rbf_config_name_found=file
                     rbf_config_found = True
-        # 2. Check that this file is used inside the u-boot script
+        # 2.A. Rebuild a existing rbf file: Check that this file is used inside the u-boot script
         if rbf_config_found and not rbf_config_name_found=='':
             print('    The file "'+rbf_config_name_found+'" found')
             b = bytes(rbf_config_name_found, 'utf-8')
@@ -1041,13 +1092,46 @@ if __name__ == '__main__':
             mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
                 if s.find(b) != -1:
                     gen_fpga_conf = True
+            
+            # Remove the old rbf file from the VFAT folder
+            try:
+                os.remove(vfat_folder_dir+'/'+rbf_config_name_found)
+            except Exception:
+                print('ERROR: Failed to remove the old VFAT FPGA config file')
 
+        # 2.B. Build a new rbf file: Check if theu-boot script should write the FPGA configuration
+        if not rbf_config_found and rbf_config_name_found=='':
+            print('    No FPGA configuration file was found')
+            print('    -> Check if theu-boot script should write the FPGA configuration')
+
+            with open(vfat_folder_dir+'/boot.script', 'rb', 0) as file:
+                for line in file:
+                    line = str(line)
+                    if not line.find('.rbf')==-1 and not line.startswith('#'):
+                        rbf_end= line.find('.rbf')+4
+                        rbf_start=0
+                        for i in range(rbf_end,0,-1):
+                            if line[i] ==' ':
+                                rbf_start = i+1
+                                break
+                        if i > 3:
+                            gen_fpga_conf = True
+                            rbf_config_name_found = line[rbf_start:rbf_end]
+                        
         # 3. Generate the FPGA configuration file
         if gen_fpga_conf:
+            # Remove the old rbf file from the Quartus project top folder
+            if os.path.isfile(quartus_proj_top_dir+'/'+rbf_config_name_found):
+                try:
+                    os.remove(quartus_proj_top_dir+'/'+rbf_config_name_found)
+                except Exception:
+                    print('ERROR: Failed to remove the old project folder FPGA config file')
+
             try:
                 with subprocess.Popen(EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
                     time.sleep(DELAY_MS)
                     print(' --> Generate a new FPGA configuration file')
+                    print('     with the output name "'+rbf_config_name_found+'"')
                     b = bytes(' cd '+quartus_proj_top_dir+' \n', 'utf-8')
                     edsCmdShell.stdin.write(b) 
 
@@ -1060,6 +1144,22 @@ if __name__ == '__main__':
             except Exception as ex:
                 print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                 sys.exit()
+            
+            # Check that the generated rbf configuration file is now avalibile 
+            print(quartus_proj_top_dir+'/'+rbf_config_name_found)
+            if not os.path.isfile(quartus_proj_top_dir+'/'+rbf_config_name_found):
+                print('ERROR: Failed to generate the FPGA configuration file')
+                sys.exit()
+
+            # Copy the file to the VFAT folder
+            try:
+                shutil.move(quartus_proj_top_dir+'/'+rbf_config_name_found,  \
+                    vfat_folder_dir+'/')
+            except Exception as ex:
+                print('ERROR: Failed to move the rbf configuration '+ \
+                     'file to the vfat folder MSG:'+str(ex))
+                sys.exit()
+            print('    A new FPGA configuration was generated ')
         else:
             print('NOTE: It was no new FPGA configuration file generated!')
 
