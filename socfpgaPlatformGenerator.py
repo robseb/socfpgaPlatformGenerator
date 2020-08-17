@@ -309,16 +309,27 @@ if __name__ == '__main__':
     for file in os.listdir(quartus_proj_top_dir):
             if ".qpf" in file:
                 qpf_file_name =file
-                print(qpf_file_name)
                 break
 
     # Find the Quartus  (.sof) file 
     sof_file_name = ''
+    # Locking in the top folder for the sof file
     for file in os.listdir(quartus_proj_top_dir):
             if ".sof" in file:
                 sof_file_name =file
-                print(sof_file_name)
                 break
+    if sof_file_name == '':
+        # Loging inside a "output_files" and "output"
+        folder = ''
+        if os.path.isdir(quartus_proj_top_dir+'/output_files'):
+            folder = '/output_files'
+        if os.path.isdir(quartus_proj_top_dir+'/output'):
+            folder = '/output'
+        for file in os.listdir(quartus_proj_top_dir+folder):
+            if ".sof" in file:
+                sof_file_name =folder+file
+                break
+
     # Find the Platform Designer (.qsys) file  
     qsys_file_name = ''
     for file in os.listdir(quartus_proj_top_dir):
@@ -326,13 +337,20 @@ if __name__ == '__main__':
                 qsys_file_name =file
                 print(qsys_file_name)
                 break
+    print('    Founded files: ')
+    print('      QPF: "'+qpf_file_name+'"')
+    print('      SOF: "'+sof_file_name+'"')
+    print('     QSYS: "'+qsys_file_name+'"')
  
     # Find the Platform Designer folder
     if qsys_file_name=='' or qpf_file_name=='' or sof_file_name=='':
         print('\nERROR: The script was not executed inside the cloned Github- and Quartus Prime project folder!')
-        print('       Please clone this script with its folder from Github,')
-        print('       copy it to the top folder of your Quartus project and execute the script')
-        print('       directly inside the cloned folder!')
+        print('         Please clone this script with its folder from Github,')
+        print('         copy it to the top folder of your Quartus project and execute the script')
+        print('         directly inside the cloned folder!')
+        print(' NOTE:   Be sure that the QPF,SOF and QSYS folder was found!')
+        print('         These files must be in the top project folder')
+        print('         The SOF file can be also inside a sub folder with the name "output_files" and "output"')
         print('       URL: '+GIT_SCRIPT_URL+'\n')
         print('       --- Required folder structure  ---')
         print('          YOUR_QURTUS_PROJECT_FOLDER ')
