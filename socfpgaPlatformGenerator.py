@@ -274,7 +274,6 @@ if __name__ == '__main__':
     excpath = os.getcwd()
     quartus_proj_top_dir =''
     try:
-    
         if(len(excpath)<len(GITNAME)):
             raise Exception()
 
@@ -313,6 +312,7 @@ if __name__ == '__main__':
 
     # Find the Quartus  (.sof) file 
     sof_file_name = ''
+    sof_folder = ''
     # Locking in the top folder for the sof file
     for file in os.listdir(quartus_proj_top_dir):
             if ".sof" in file:
@@ -320,14 +320,13 @@ if __name__ == '__main__':
                 break
     if sof_file_name == '':
         # Loging inside a "output_files" and "output"
-        folder = ''
         if os.path.isdir(quartus_proj_top_dir+'/output_files'):
-            folder = '/output_files'
+            sof_folder = '/output_files'
         if os.path.isdir(quartus_proj_top_dir+'/output'):
-            folder = '/output'
-        for file in os.listdir(quartus_proj_top_dir+folder):
+            sof_folder = '/output'
+        for file in os.listdir(quartus_proj_top_dir+sof_folder):
             if ".sof" in file:
-                sof_file_name =folder+file
+                sof_file_name =file
                 break
 
     # Find the Platform Designer (.qsys) file  
@@ -440,7 +439,17 @@ if __name__ == '__main__':
         (name.find(socfpga_devices_list[device_id])!=-1):
             uboot_default_file_dir=excpath+'/ubootScripts/'+name
     if uboot_default_file_dir =='':
-        print('NOTE: No depping default u-boot script file available for this device!')
+        print('NOTE: No depping default u-boot script file is available for this device!')
+
+    # Find the depending default pre-build u-boot 
+    uboot_default_preBuild_dir =''
+    for name in os.listdir(excpath+'/ubootDefaultSFP'):
+        if  os.path.isfile(excpath+'/ubootDefaultSFP/'+name) and \
+        (name.find(socfpga_devices_list[device_id])!=-1):
+            uboot_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
+    if uboot_default_preBuild_dir =='':
+        print('NOTE: No depping default u-boot pre-build file is available for this device!')
+    
     
 
 ##################################### Update "LinuxBootImageFileGenerator" ####################################################
@@ -612,28 +621,47 @@ if __name__ == '__main__':
 #################################### Setup u-boot with the Quartus Prime Settings  ################################################
 
     bootloader_build_required =True
+    use_default_bootloader = False
+
     print(vfat_folder_dir+'/'+'u-boot-with-spl.sfp')
     if (bootloader_available and os.path.isfile(raw_folder_dir+'/'+'u-boot-with-spl.sfp')):
-
         bootloader_build_required = False
-        print('\n################################################################################')
-        print('#                                                                              #')
-        print('#                            Bootloader is available                           #')
-        print('#                                                                              #')
+
+    print('\n################################################################################')
+    print('#                                                                              #')
+    print('#                       Bootloader Generation Settings                         #')
+    print('#                                                                              #')
+    if not bootloader_build_required:
         print('#                    Do you want to rebuild the bootloader?                    #')
-        print('#                                                                              #')
-        print('--------------------------------------------------------------------------------')
-        print('#    Y:              Yes, rebuild the bootloader                               #')
-        print('#    anything else:  No,  continue without rebuilding the bootloader           #')
-        print('#    Q:              Abort                                                     #')
-        print('------------------------------------------------------------------------------')
-        __wait2__ = input('Please type...')
+    print('#                                                                              #')
+    print('--------------------------------------------------------------------------------')
+    print('#    Y:              Build/Rebuild the bootloader                              #')
+    print('#    D:              Use the pre-build default bootloader                      #')
 
-        if __wait2__ =='q' or __wait2__=='Q':
+    if not bootloader_build_required:
+        print('#    anything else:  Continue without rebuilding the bootloader                #')
+    print('#    Q:              Abort                                                     #')
+    print('------------------------------------------------------------------------------')
+    __wait2__ = input('Please type...')
+
+    if __wait2__ =='q' or __wait2__=='Q':
+        sys.exit()
+    elif __wait2__ =='Y' or __wait2__=='y':
+        bootloader_build_required = True
+    elif __wait2__ =='D' or __wait2__=='d':
+        use_default_bootloader = True
+        bootloader_build_required=False
+############################################  Use the default pre-build bootloader   ################################################
+    if use_default_bootloader: 
+        print('--> Use the default pre-build bootloader')
+        if not os.path.isdir(excpath+'/ubootDefaultSFP'):
+            print('ERROR: The u-boot default pre-build folder "ubootDefaultSFP" is not available')
             sys.exit()
-        elif __wait2__ =='Y' or __wait2__=='y':
-            bootloader_build_required = True
-
+        try:
+            shutil.copy2(uboot_default_preBuild_dir,raw_folder_dir+'/u-boot-with-spl.sfp')
+        except Exception as ex:
+            print('ERROR: Failed to copy the pre-build file to the RAW folder MSG='+str(ex))
+        
 ################################################  Install the Linaro toolchain  #####################################################
     if bootloader_build_required:
         toolchain_dir = excpath+'/toolchain'
@@ -681,7 +709,6 @@ if __name__ == '__main__':
         
 
 ################################################  Build the bootloader #####################################################
-    
         print('--> Start the Intel Embedded Command Shell')
         try:
             # Create the BSP package for the device with the Intel EDS shell
@@ -927,8 +954,6 @@ if __name__ == '__main__':
         print('--> "u-boot-socfpga" build was successfully')
     # u-boot build
 
-   
-
 ####################################### Copy the bootloader files to the partition #######################################
     print(' --> Copy the bootloader file "'+BOOTLOADER_FILE_NAME+'" to the RAW partition')
 
@@ -943,7 +968,7 @@ if __name__ == '__main__':
         sys.exit()
     
     # Copy the bootloader file 
-    if bootloader_build_required:
+    if bootloader_build_required and not use_default_bootloader:
         try:
             shutil.copy2(u_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
                 raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
@@ -1056,7 +1081,7 @@ if __name__ == '__main__':
                 # NOTE: Work required!!
 
 ################################## Create the bootloader configuration file "extlinux.conf" ################################### 
-    
+    '''
     if not os.path.isfile(vfat_folder_dir+'/extlinux/extlinux.conf'):
         print('--> Create boot configuration file "extlinux.conf" ')
         if not os.path.isdir(vfat_folder_dir+'/extlinux'):
@@ -1067,7 +1092,7 @@ if __name__ == '__main__':
             f.write('   KERNEL ../zImage\n')
             f.write('   FDT ../socfpga_cyclone5_socdk.dtb\n')
             f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
-    
+    '''
 
 ############################################ Create the u-boot script "boot.script" ########################################## 
     if not os.path.isfile(vfat_folder_dir+'/boot.scr'):
@@ -1138,10 +1163,15 @@ if __name__ == '__main__':
                         
         # 3. Generate the FPGA configuration file
         if gen_fpga_conf:
+            if sof_folder =='':
+                sof_file_dir = quartus_proj_top_dir
+            else:
+                sof_file_dir = quartus_proj_top_dir+'/'+sof_folder
+
             # Remove the old rbf file from the Quartus project top folder
-            if os.path.isfile(quartus_proj_top_dir+'/'+rbf_config_name_found):
+            if os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
                 try:
-                    os.remove(quartus_proj_top_dir+'/'+rbf_config_name_found)
+                    os.remove(sof_file_dir+'/'+rbf_config_name_found)
                 except Exception:
                     print('ERROR: Failed to remove the old project folder FPGA config file')
 
@@ -1150,7 +1180,8 @@ if __name__ == '__main__':
                     time.sleep(DELAY_MS)
                     print(' --> Generate a new FPGA configuration file')
                     print('     with the output name "'+rbf_config_name_found+'"')
-                    b = bytes(' cd '+quartus_proj_top_dir+' \n', 'utf-8')
+
+                    b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                     edsCmdShell.stdin.write(b) 
 
                     b = bytes('quartus_cpf -c '+sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
@@ -1163,15 +1194,14 @@ if __name__ == '__main__':
                 print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                 sys.exit()
             
-            # Check that the generated rbf configuration file is now avalibile 
-            print(quartus_proj_top_dir+'/'+rbf_config_name_found)
-            if not os.path.isfile(quartus_proj_top_dir+'/'+rbf_config_name_found):
+            # Check that the generated rbf configuration file is now avalibile d)
+            if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
                 print('ERROR: Failed to generate the FPGA configuration file')
                 sys.exit()
 
             # Copy the file to the VFAT folder
             try:
-                shutil.move(quartus_proj_top_dir+'/'+rbf_config_name_found,  \
+                shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
                     vfat_folder_dir+'/')
             except Exception as ex:
                 print('ERROR: Failed to move the rbf configuration '+ \
