@@ -647,11 +647,11 @@ if __name__ == '__main__':
                 try:
                     wget.download(limaro_url_list[device_id], out=toolchain_dir)
                 except Exception as ex:
-                    print('ERROR: Failed to download with wget! MSG:'+str(ex))
+                    print('\nERROR: Failed to download with wget! MSG:'+str(ex))
                     print('       Download URL: "'+limaro_url_list[device_id]+'"')
                     sys.exit()
             if os.path.isfile(toolchain_dir+'/'+limaro_version_list[device_id]+'.tar.xz'):
-                print('--> Unpackage the linaro toolchain archive file')
+                print('\n--> Unpackage the linaro toolchain archive file')
                 try:
                     os.system('tar xf '+toolchain_dir+'/'+ \
                             limaro_version_list[device_id]+'.tar.xz -C '+toolchain_dir)
