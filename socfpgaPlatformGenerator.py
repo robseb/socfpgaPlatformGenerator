@@ -390,7 +390,7 @@ if __name__ == '__main__':
     for file in os.listdir(quartus_proj_top_dir+'/'+handoff_folder_name):
         if "hps.xml" == file:
             handoff_xml_found =True
-            break
+            break 
     if not handoff_xml_found:
         print('ERROR: The "hps.xml" file inside the handoff folder was not found!')
         print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
@@ -623,7 +623,6 @@ if __name__ == '__main__':
     bootloader_build_required =True
     use_default_bootloader = False
 
-    print(vfat_folder_dir+'/'+'u-boot-with-spl.sfp')
     if (bootloader_available and os.path.isfile(raw_folder_dir+'/'+'u-boot-with-spl.sfp')):
         bootloader_build_required = False
 
@@ -969,6 +968,7 @@ if __name__ == '__main__':
     
     # Copy the bootloader file 
     if bootloader_build_required and not use_default_bootloader:
+        print('--> Copy the bootloader executable to the partition')
         try:
             shutil.copy2(u_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
                 raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
@@ -977,6 +977,16 @@ if __name__ == '__main__':
             sys.exit()
 
     print('     = Done')
+#########################################  Rootfs,zImage,... already in VFAT folder #######################################
+    linux_files_available= False
+    if os.path.isfile(ext_folder_dir+'/rootfs.tar.gz') and os.path.isfile(vfat_folder_dir+'/zImage'):
+        # Check that a device tree file is available
+        for file in os.listdir(vfat_folder_dir):
+            if os.path.isfile(vfat_folder_dir+'/'+file) and \
+            not file.find('.dts')==-1:
+                linux_files_available=True
+                print('--> All necessary Linux files are already available')
+                break
 
 ###################################### Find a Linux build with the Yocto Project    ######################################
     print('--> Looking for the Yocto Project ')
@@ -1030,10 +1040,11 @@ if __name__ == '__main__':
     else:
         print('     No Yocto Installation was found!')
 
+    
     if yocto_project_available:
         # Read the modication date of the Yocto Project rootfs file 
         modification_time = time.ctime(os.path.getmtime(yocto_rootfs_dir))
-        
+
         print('\n################################################################################')
         print('#                                                                              #')
         print('#            COMPATIBLE YOCTO PROJECT LINUX DISTRIBUTION WAS FOUND             #')
@@ -1046,16 +1057,28 @@ if __name__ == '__main__':
         print('#    zImage: "'+yocto_zimage_name+'"')
         print('#    Devicetree: "'+yocto_devicetree_name+'"')
         print('--------------------------------------------------------------------------------')
+        print('#                Y: Yes, use these files for this build                        #')
         print('#                M: No, copy file manually instat                              #')
         print('#                Q: Abort                                                      #')
-        print('#    anything else: Yes, use files for this build                              #')
+        if not linux_files_available:
+            print('#    anything else: Yes, use these files for this build                        #')
+        else:
+            print('#    anything else: Use the existing Linux files inside the Partition folder   #')
         print('------------------------------------------------------------------------------')
         __wait3__ = input('Type anything to continue ... ')
+        
+    
+        yocto_project_available =False
 
         if __wait3__ =='q' or __wait3__=='Q':
             sys.exit()
+        if __wait3__ =='y' or __wait3__=='Y':
+            yocto_project_available=True
+        if __wait3__ =='m' or __wait3__=='M':
+            yocto_project_available=False
+            linux_files_available = False
         
-        if not (__wait3__ =='m' or __wait3__=='M'):
+    if yocto_project_available:
             print('--> Copy the Yocto Project files to the "'+image_folder_name+'" folder')
 
             # Copy rootfs.tar.gz to the image parttition folder
@@ -1079,7 +1102,16 @@ if __name__ == '__main__':
             if not yocto_devicetree_dir == '':
                 print('    Copy "'+yocto_devicetree_name+'" and rename it to "zImage"')
                 # NOTE: Work required!!
-
+    elif linux_files_available:
+        # Use the existing files 
+        print('--> The existing Linux files inside the image folder will be used again')
+    else:
+        # Use the existing files 
+        print('--> Please copy the files manauly to the Image folder')
+        __wait7__ = input('Type anything to continue ... ')
+        if __wait3__ =='q' or __wait3__=='Q':
+            sys.exit()
+        
 ################################## Create the bootloader configuration file "extlinux.conf" ################################### 
     '''
     if not os.path.isfile(vfat_folder_dir+'/extlinux/extlinux.conf'):
