@@ -21,11 +21,11 @@
 # Python Script to automatically generate the u-boot loader 
 # for Intel SoC-FPGAs 
  
-# (2020-07-17) Vers.1.0 
+# (2020-07-23) Vers.1.0 
 #   first Version 
 #
 
-version = "0.05"
+version = "1.00"
 
 #
 #
@@ -79,7 +79,7 @@ INTELSOCFPGA_BLUEPRINT_XML_FILE ='<?xml version="1.0" encoding = "UTF-8" ?>\n'+\
     '<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" />\n'+\
     '</LinuxDistroBlueprint>\n'
 
-# "u-boot-socfpga" QTS file location direcotry 
+# "u-boot-socfpga" QTS file location directory 
 u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/arria5-socdk/qts/', \
                     '/board/altera/arria10-socdk/qts/']
 
@@ -163,7 +163,7 @@ except ModuleNotFoundError as ex:
 
 # 
 #
-# @brief Class for automatating the entry bootable Linux Distribution generation 
+# @brief Class for automatisation the entry bootable Linux Distribution generation 
 #        for Intel SoC-FPGAs
 #   
 class SocfpgaPlatformGenerator:
@@ -178,9 +178,11 @@ class SocfpgaPlatformGenerator:
     Uboot_default_preBuild_dir  : str # Directory of the pre-build u-boot for the device 
     Quartus_bootloder_dir       : str # Directory of the Quartus Project "/software/bootloader"-folder
     Sof_folder                  : str # Name of the Quartus Project folder containing the ".sof"-file 
-    U_boot_socfpga_dir          : str # Direcotroy of u-boot SoC-FPGA folder 
+    U_boot_socfpga_dir          : str # Directory of u-boot SoC-FPGA folder 
+    Uboot_default_file_dir      : str # Directory of the pre-build default u-boot file 
+    unlicensed_ip_found         : bool# Quartus project contains an unlicensed IP (e.g. NIOS II Core) 
 
-    Device_id                   : int # SocFPGA ID (0: Cyclone V; 1: Arria V; Arria 10)
+    Device_id                   : int # SocFPGA ID (0: Cyclone V; 1: Arria V;2: Arria 10)
     
     PartitionList               : Partition # Partition List for boot image generation 
 
@@ -307,13 +309,13 @@ class SocfpgaPlatformGenerator:
         # Find the Quartus  (.sof) file 
         self.Sof_file_name = ''
         self.Sof_folder = ''
-        # Locking in the top folder for the sof file
+        # Looking in the top folder for the sof file
         for file in os.listdir(self.Quartus_proj_top_dir):
                 if ".sof" in file:
                     self.Sof_file_name =file
                     break
         if self.Sof_file_name == '':
-            # Loging inside a "output_files" and "output"
+            # Looking inside the "output_files" and "output" folders
             if os.path.isdir(self.Quartus_proj_top_dir+'/output_files'):
                 self.Sof_folder = '/output_files'
             if os.path.isdir(self.Quartus_proj_top_dir+'/output'):
@@ -336,6 +338,16 @@ class SocfpgaPlatformGenerator:
         print('      SOF: "'+self.Sof_file_name+'"')
         print('     QSYS: "'+self.Qsys_file_name+'"')
 
+        # Does the SOF file contains an IP with a test licence, such as a NIOS II Core?
+        self.unlicensed_ip_found=False
+        if self.Sof_file_name in "_time_limited":
+            print('********************************************************************************')
+            print('*                   Unlicensed IP inside the project found!                    *')
+            print('*                  Generation of ".rbf" file is not possible!                  *')
+            print('********************************************************************************\n')
+            self.unlicensed_ip_found=True
+
+
         # Find the Platform Designer folder
         if self.Qsys_file_name=='' or self.Qpf_file_name=='' or self.Sof_file_name=='':
             print('\nERROR: The script was not executed inside the cloned Github- and Quartus Prime project folder!')
@@ -344,7 +356,7 @@ class SocfpgaPlatformGenerator:
             print('         directly inside the cloned folder!')
             print(' NOTE:   Be sure that the QPF,SOF and QSYS folder was found!')
             print('         These files must be in the top project folder')
-            print('         The SOF file can be also inside a sub folder with the name "output_files" and "output"')
+            print('         The SOF file can also be inside a sub folder with the name "output_files" and "output"')
             print('       URL: '+GIT_SCRIPT_URL+'\n')
             print('       --- Required folder structure  ---')
             print('          YOUR_QURTUS_PROJECT_FOLDER ')
@@ -355,7 +367,7 @@ class SocfpgaPlatformGenerator:
             print('       |     L-- socfpgaPlatformGenerator <<<----')
             print('       |         L-- socfpgaPlatformGenerator.py')
             print('       Note: File names can be chosen freely\n')
-            print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
+            print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generation!')
             sys.exit()
 
         # Find the handoff folder
@@ -371,8 +383,8 @@ class SocfpgaPlatformGenerator:
             if os.path.isdir(self.Quartus_proj_top_dir+'/'+handoff_folder_start_name+'/'+folder):
                 self.Handoff_folder_name = folder
                 if folder_found:
-                    print('ERROR: More then one folder inside the Quartus handoff folder "'+self.Handoff_folder_name+'" found! Please delate one!')
-                    print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
+                    print('ERROR: More than one folder inside the Quartus handoff folder "'+self.Handoff_folder_name+'" found! Please delete one!')
+                    print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generation!')
                     sys.exit()
                 folder_found = True
         self.Handoff_folder_name = handoff_folder_start_name+'/'+self.Handoff_folder_name
@@ -388,7 +400,7 @@ class SocfpgaPlatformGenerator:
                 break 
         if not handoff_xml_found:
             print('ERROR: The "hps.xml" file inside the handoff folder was not found!')
-            print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generatition!')
+            print('NOTE: It is necessary to build the Prime Quartus Project for the bootloader generation!')
             sys.exit()
 
         # Load the "hps.xml" file to read the device name
@@ -398,7 +410,7 @@ class SocfpgaPlatformGenerator:
             tree = ET.parse(self.Quartus_proj_top_dir+'/'+self.Handoff_folder_name+'/'+'hps.xml') 
             root = tree.getroot()
         except Exception as ex:
-            print(' ERROR: Failed to prase "hps.xml" file!')
+            print(' ERROR: Failed to parse "hps.xml" file!')
             print(' Msg.: '+str(ex))
             sys.exit()
 
@@ -427,14 +439,14 @@ class SocfpgaPlatformGenerator:
             sys.exit()
         print('     Device Name:"'+device_name_temp+'"') 
 
-        uboot_default_file_dir =''
+        self.Uboot_default_file_dir =''
         # Find the depending default u-boot script file 
         for name in os.listdir(excpath+'/ubootScripts'):
             if  os.path.isfile(excpath+'/ubootScripts/'+name) and \
             (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
-                uboot_default_file_dir=excpath+'/ubootScripts/'+name
-        if uboot_default_file_dir =='':
-            print('NOTE: No depping default u-boot script file is available for this device!')
+                self.Uboot_default_file_dir=excpath+'/ubootScripts/'+name
+        if self.Uboot_default_file_dir =='':
+            print('NOTE: No depending default u-boot script file is available for this device!')
 
         # Find the depending default pre-build u-boot 
         self.Uboot_default_preBuild_dir =''
@@ -443,7 +455,7 @@ class SocfpgaPlatformGenerator:
             (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
                 self.Uboot_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
         if self.Uboot_default_preBuild_dir =='':
-            print('NOTE: No depping default u-boot pre-build file is available for this device!')
+            print('NOTE: No depending default u-boot pre-build file is available for this device!')
         
     ##################################### Update "LinuxBootImageFileGenerator" ####################################################
         print('-> Pull the latest "LinuxBootImageFileGenerator" Version from GitHub!')
@@ -470,7 +482,7 @@ class SocfpgaPlatformGenerator:
             self.Bootloader_available = True
         self.U_boot_socfpga_dir = self.Quartus_bootloder_dir+'/'+'u-boot-socfpga'
     ###############################################   Create SD-CARD folder  ##############################################
-        # Create the parttition blueprint xml file 
+        # Create the partition blueprint xml file 
         if os.path.exists('SocFPGABlueprint.xml'):
             # Check that the SocFPGABlueprint XML file looks valid
             print('---> The Linux Distribution blueprint XML file exists')
@@ -485,7 +497,7 @@ class SocfpgaPlatformGenerator:
     # @brief Create the partition table for Intel SoC-FPGAs by reading the "SocFPGABlueprint" XML-file
     # @return                      success
     #
-    def GeneratePartitionTable(self ):
+    def GeneratePartitionTable(self):
         ############################################ Read the XML Blueprint file  ###########################################
         ####################################### & Process the settings of a partition   ####################################
         print('---> Read the XML blueprint file ')
@@ -493,7 +505,7 @@ class SocfpgaPlatformGenerator:
             tree = ET.parse('SocFPGABlueprint.xml') 
             root = tree.getroot()
         except Exception as ex:
-            print(' ERROR: Failed to prase SocFPGABlueprint.xml file!')
+            print(' ERROR: Failed to parse SocFPGABlueprint.xml file!')
             print(' Msg.: '+str(ex))
             return False
         
@@ -580,18 +592,18 @@ class SocfpgaPlatformGenerator:
                 self.Vfat_folder_dir=excpath+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)
                 if not part.comp_devicetree:
                     print('NOTE:  The devicetree compilation is for the VFAT/FAT partition not enabled!')
-                    print('       The script may not work propertly!')
+                    print('       The script may not work properly!')
                 if not part.comp_ubootscript == self.Socfpga_arch_list[self.Device_id]:
                     print('NOTE:  Compilation of the u-boot script is for the ext3/LINUX partition\n'+ \
-                        '       is not enabled or or the wrong architecture is selected!\n'+ \
+                        '       is not enabled or the wrong architecture is selected!\n'+ \
                         '       Use: ubootscript="'+self.Socfpga_arch_list[self.Device_id]+'"')
-                    print('       The script may not work propertly!')
+                    print('       The script may not work properly!')
 
             elif part.type_hex=='83': # LINUX
                 self.Ext_folder_dir=excpath+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)
                 if not part.unzip_file:
                     print('NOTE:  Unzip is for the ext3/LINUX partition not enabled!')
-                    print('      The script may not work propertly!')
+                    print('      The script may not work properly!')
         # All folders there ?
         if self.Raw_folder_dir =='':
             print('ERROR: The chosen partition table has now RAW/NONE-partition.')
@@ -614,7 +626,7 @@ class SocfpgaPlatformGenerator:
     #        and copy the output files to the depending partition folders
     # @param generation_mode       0: The User can chose how the bootloader should be build
     #                              1: Allways build or re-build the entire bootloader 
-    #                              2: Build the entire bootloader incase it was not done
+    #                              2: Build the entire bootloader in case it was not done
     #                              3: Use the default pre-build bootloader for the device 
     # @return                      success
     #
@@ -828,7 +840,7 @@ class SocfpgaPlatformGenerator:
                 print('#  At this point it is possible to change the code of "u-boot-socfpga"         #')
                 print('#                                                                              #')
                 print('--------------------------------------------------------------------------------')
-                print('#                   --- "u-boot-socfpga" file direcotroy ---                   #')
+                print('#                   --- "u-boot-socfpga" file Directory ---                   #')
                 print('#   '+self.U_boot_socfpga_dir)
                 print('--------------------------------------------------------------------------------')
                 print('#                M: Start menuconfig for "u-boot-socfpga"                      #')
@@ -998,10 +1010,10 @@ class SocfpgaPlatformGenerator:
     #
     # @brief Copy all essential Linux Distribution files (rootfs,zImage,Device Tree) to  
     #        the depending partition
-    # @param copy_mode             0: The User can chose whitch files shuld be used 
-    #                              1: Use compatibile Yocto Project files
+    # @param copy_mode             0: The User can chose which files should be used 
+    #                              1: Use compatible Yocto Project files
     #                              2: Use the existing files inside the partition
-    # @note                        Use this method allways! It checks if all files are a available
+    # @note                        Use this method allways! It checks if all files are available
     # @return                      success
     #
     def CopyLinuxFiles2Partition(self,copy_mode=0):
@@ -1017,9 +1029,9 @@ class SocfpgaPlatformGenerator:
                     break
 
     ###################################### Find a Linux build with the Yocto Project    ######################################
+        yocto_project_available =False
         if not copy_mode==2:
             print('--> Looking for the Yocto Project ')
-            yocto_project_available =False
 
             # Directory of the Yocto Project rootfs .tar.gz file
             yocto_rootfs_dir =''
@@ -1045,7 +1057,7 @@ class SocfpgaPlatformGenerator:
             
                 if os.path.isdir(yocto_device_dir):
                     print('    A project with the same device "'+self.Socfpga_devices_list[self.Device_id]+'" was found')
-                    # Find the zImage, the rootfs and devicetree file if available
+                    # Find the zImage, the rootfs and devicetree files if available
                     for name in os.listdir(yocto_device_dir):
                         
                         if  os.path.isfile(yocto_device_dir+'/'+name) and \
@@ -1070,7 +1082,7 @@ class SocfpgaPlatformGenerator:
         else:
             if not linux_files_available:
                 print('ERROR: They are no rootfs-,zImage or device Tree '+ \
-                        ' file inside the Partition folder available ') 
+                        ' files inside the Partition folder available ') 
                 print('       Please insert manually or use the Yocto-Project output')
                 return False
 
@@ -1093,7 +1105,7 @@ class SocfpgaPlatformGenerator:
                 print('#    Devicetree: "'+yocto_devicetree_name+'"')
                 print('--------------------------------------------------------------------------------')
                 print('#                Y: Yes, use these files for this build                        #')
-                print('#                M: No, copy file manually instat                              #')
+                print('#                M: No, copy file manually instead                             #')
                 print('#                Q: Abort                                                      #')
                 if not linux_files_available:
                     print('#    anything else: Yes, use these files for this build                        #')
@@ -1113,16 +1125,15 @@ class SocfpgaPlatformGenerator:
         if yocto_project_available:
                 print('--> Copy the Yocto Project files to the "'+IMAGE_FOLDER_NAME+'" folder')
 
-                # Copy rootfs.tar.gz to the image parttition folder
+                # Copy rootfs.tar.gz to the image partition folder
                 print('    Copy "'+yocto_rootfs_name+'" and rename it to "rootfs.tar.gz"')
                 try:
                     shutil.copy2(yocto_rootfs_dir,self.Ext_folder_dir+'/rootfs.tar.gz')
                 except Exception as ex:
                     print('EROR: Failed to copy the rootfs file! MSG: '+str(ex))
                     return False
-                #NOTE: Check that is unzip is enabled!
                 
-                # Copy compressed Kernel image to the image parttition folder
+                # Copy compressed Kernel image to the image partition folder
                 print('    Copy "'+yocto_zimage_name+'" and rename it to "zImage"')
                 try:
                     shutil.copy2(yocto_zimage_dir,self.Vfat_folder_dir+'/zImage')
@@ -1130,7 +1141,7 @@ class SocfpgaPlatformGenerator:
                     print('EROR: Failed to copy the zImage file! MSG: '+str(ex))
                     return False
 
-                # Copy compressed Kernel image to the image parttition folder
+                # Copy compressed Kernel image to the image partition folder
                 if not yocto_devicetree_dir == '':
                     print('    Copy "'+yocto_devicetree_name+'" and rename it to "zImage"')
                     # NOTE: Work required!!
@@ -1140,7 +1151,7 @@ class SocfpgaPlatformGenerator:
         else:
             # Use the existing files 
             if copy_mode==0:
-                print('--> Please copy the files manauly to the Image folder')
+                print('--> Please copy the files manually to the Image folder')
                 __wait7__ = input('Type anything to continue ... ')
                 if __wait3__ =='q' or __wait3__=='Q':
                     sys.exit()
@@ -1161,14 +1172,14 @@ class SocfpgaPlatformGenerator:
 
     ############################################ Create the u-boot script "boot.script" ########################################## 
         if not os.path.isfile(self.Vfat_folder_dir+'/boot.scr'):
-            print('--> Copy the default "boot.script" parition')
-            if uboot_default_file_dir == '':
-                print('ERROR: There is no default u-boot script file avaibile!')
-                print('       Please insiert a own "boot.script" file to')
+            print('--> Copy the default "boot.script" partition')
+            if self.Uboot_default_file_dir == '':
+                print('ERROR: There is no default u-boot script file available!')
+                print('       Please insert an own "boot.script" file to')
                 print('       the VFAT/FAT partition')
                 return False
             try:
-                shutil.copy2(uboot_default_file_dir,self.Vfat_folder_dir+'/boot.script')
+                shutil.copy2(self.Uboot_default_file_dir,self.Vfat_folder_dir+'/boot.script')
             except Exception as ex:
                 print('ERROR: Failed to copy the u-boot script file MSG: '+str(ex))
         return True
@@ -1177,11 +1188,13 @@ class SocfpgaPlatformGenerator:
     #
     # @brief Create a FPGA configuration file for configure the FPGA during boot in case this
     #        feature was selected inside the u-boot script
+    # @param copy_file             Only copy and rename a existing rbf file 
+    # @pram  dir2copy              Directory with the rbf file to copy 
     # @return                      success
     #
-    def GenerateBootFPGAconf(self):
+    def GenerateBootFPGAconf(self,copy_file=False,dir2copy=''):
         print(' --> Check if it is necessary to generate a FPGA configuration file ')
-        # Check if a FPGA configuration binary genration is necessary
+        # Check if a FPGA configuration binary generation is necessary
         # -> Only in case the u-boot script was configured to write the FPGA configuration  
         if os.path.isfile(self.Vfat_folder_dir+'/boot.script'):
             print('    Scan VFAT partition for a ".rbf" FPGA config file')
@@ -1192,14 +1205,15 @@ class SocfpgaPlatformGenerator:
             for file in os.listdir(self.Vfat_folder_dir):
                 if os.path.isfile(self.Vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
                     if rbf_config_found:
-                        print('Note: There are more then one ".rbf" configuration file')
-                        print('      inside the VFAT partition avalibile!')
-                        print('      A new generation of the FPGA configuration is not posibile')
+                        print('Note: There are more than one ".rbf" configuration file')
+                        print('      inside the VFAT partition available!')
+                        print('      A new generation of the FPGA configuration is not possible')
                         rbf_config_name_found=''
+                        return False
                     else:
                         rbf_config_name_found=file
                         rbf_config_found = True
-            # 2.A. Rebuild a existing rbf file: Check that this file is used inside the u-boot script
+            # 2.A. Rebuild an existing rbf file: Check that this file is used inside the u-boot script
             if rbf_config_found and not rbf_config_name_found=='':
                 print('    The file "'+rbf_config_name_found+'" found')
                 b = bytes(rbf_config_name_found, 'utf-8')
@@ -1209,15 +1223,16 @@ class SocfpgaPlatformGenerator:
                         gen_fpga_conf = True
                 
                 # Remove the old rbf file from the VFAT folder
-                try:
-                    os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
-                except Exception:
-                    print('ERROR: Failed to remove the old VFAT FPGA config file')
+                if self.unlicensed_ip_found==False or copy_file:    
+                    try:
+                        os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
+                    except Exception:
+                        print('ERROR: Failed to remove the old VFAT FPGA config file')
 
-            # 2.B. Build a new rbf file: Check if theu-boot script should write the FPGA configuration
+            # 2.B. Build a new rbf file: Check if the u-boot script should write the FPGA configuration
             if not rbf_config_found and rbf_config_name_found=='':
                 print('    No FPGA configuration file was found')
-                print('    -> Check if theu-boot script should write the FPGA configuration')
+                print('    -> Check if the u-boot script should write the FPGA configuration')
 
                 with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file:
                     for line in file:
@@ -1232,9 +1247,29 @@ class SocfpgaPlatformGenerator:
                             if i > 3:
                                 gen_fpga_conf = True
                                 rbf_config_name_found = line[rbf_start:rbf_end]
-                            
-            # 3. Generate the FPGA configuration file
-            if gen_fpga_conf:
+
+            if self.unlicensed_ip_found==True and not copy_file: 
+                print('\n#############################################################################')
+                print('#        Your Quartus Prime project contains unlicend demo IPs               #')
+                print('#                                                                            #')
+                print('#                                                                            #')
+                print('#              For this project a generation of a  FPGA                      #')
+                print('#                 configuration file is not possible.                        #')
+                print('#                                                                            #')
+                print('#               Please insert a different ".rbf" file                        #')
+                print('#   File name: "'+rbf_config_name_found+'"                                   #')
+                print('#   Directory: "'+self.Vfat_folder_dir+'/'+rbf_config_name_found+'"          #')
+                print('#                                                                            #')
+                print('#        Q: Quit the script                                                  #')
+                print('#        Any other input: Continue with the generation                       #')
+                print('#                                                                            #')
+                print('##############################################################################')
+                _wait_ = input('#              Please type ...                                               #\n')
+                if _wait_ == 'q' or _wait_ == 'Q':
+                    sys.exit()
+
+            # 3.a Generate the FPGA configuration file
+            if gen_fpga_conf and not copy_file:
                 if self.Sof_folder =='':
                     sof_file_dir = self.Quartus_proj_top_dir
                 else:
@@ -1266,7 +1301,7 @@ class SocfpgaPlatformGenerator:
                     print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                     return False
                 
-                # Check that the generated rbf configuration file is now avalibile d)
+                # Check that the generated rbf configuration file is now available
                 if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
                     print('ERROR: Failed to generate the FPGA configuration file')
                     return False
@@ -1280,13 +1315,32 @@ class SocfpgaPlatformGenerator:
                         'file to the vfat folder MSG:'+str(ex))
                     return False
                 print('    A new FPGA configuration was generated ')
+
+            # 3.b Copy an existing FPGA configuration to the partition
+            elif gen_fpga_conf and copy_file:
+                print(' --> Copy an existing FPGA configuration file to the partition')
+                
+                # Check that the rbf configuration file is available
+                if not os.path.isfile(dir2copy):
+                    print('ERROR: The file to copy does not exist!')
+                    return False
+
+                # Copy the file to the VFAT folder
+                try:
+                    shutil.copy2(dir2copy,self.Vfat_folder_dir+'/'+ \
+                        rbf_config_name_found)
+                except Exception as ex:
+                    print('ERROR: Failed to copy the rbf configuration '+ \
+                        'file to the vfat folder MSG:'+str(ex))
+                    return False
+                print('    The new FPGA configuration file was inserted!')
             else:
                 print('NOTE: It was no new FPGA configuration file generated!')
         return True
 
     #
     #
-    # @brief Scan every Partition folder and unpackage all archive file such as the rootfs
+    # @brief Scan every Partition folder and unpackage all archive files such as the rootfs
     # @return                      success
     #
     def ScanUnpackagePartitions(self):
@@ -1330,7 +1384,7 @@ class SocfpgaPlatformGenerator:
         else: 
             self.OutputZipFileName = OutputZipFileName
         
-        print('---> Calculate Partition sizes and the tatal size')
+        print('---> Calculate Partition sizes and the total size')
         try:
             for part in self.PartitionList:
                 # List every file inside the folder
@@ -1356,7 +1410,7 @@ class SocfpgaPlatformGenerator:
             print('-> Print the loaded Partition table')
             self.BootImageCreator.printPartitionTable()
 
-            _wait2_ = input('Start generating the image by typing anything to continue ... (q/Q for quite) ')
+            _wait2_ = input('Start generating the image by typing anything to continue ... (q/Q for quit) ')
             if _wait2_ == 'q' or _wait2_ == 'Q':
                 sys.exit()
 
@@ -1387,18 +1441,18 @@ if __name__ == '__main__':
     print('#    ##    ##  ##    ##       ##    ##     ## ##    ##    ##    ##     ##    #')    
     print('#    ##     ##  ######        ##     #######   ######     ##     #######     #') 
     print('#                                                                            #')
-    print("#       AUTOMATIC SCRIPT TO COMBINE ALL FILES OF A EMBEDDED LINUX TO A       #")
+    print("#       AUTOMATIC SCRIPT TO COMBINE ALL FILES OF AN EMBEDDED LINUX TO A      #")
     print("#                       BOOTABLE DISTRIBUTABLE IMAGE FILE                    #")
     print('#                                                                            #')
     print("#               by Robin Sebastian (https://github.com/robseb)               #")
     print('#                          Contact: git@robseb.de                            #')
-    print("#                            Vers.: "+version+"                                     #")
+    print("#                            Vers.: "+version+"                                    #")
     print('#                                                                            #')
     print('##############################################################################\n\n')
 
     ############################################ Runtime environment check ###########################################
 
-    # Check proper Python Version
+    # Check properly Python Version
     if sys.version_info[0] < 3:
         print('ERROR: This script can not work with your Python Version!')
         print("Use Python 3.x for this script!")
@@ -1409,17 +1463,21 @@ if __name__ == '__main__':
         print('ERROR: This script works only on Linux!')
         print("Please run this script on a Linux Computer!")
         sys.exit()
+        
+    if os.geteuid() == 0:
+        print('ERROR: This script can not run with root privileges!')
+        sys.exit()
 
     ###################################### Run the SoC-FPGA Platform Generator  ###########################################
 
-    # Read the execution envioment 
+    # Read the execution environment 
     socfpgaGenerator = SocfpgaPlatformGenerator()
 
     # Create the partition table 
     if not socfpgaGenerator.GeneratePartitionTable():
         sys.exit()
 
-    # Create the requierd bootloader
+    # Create the required bootloader
     if not socfpgaGenerator.BuildBootloader():
         sys.exit()
 
@@ -1428,9 +1486,10 @@ if __name__ == '__main__':
         sys.exit()
     
     # Generate the depending FPGA configuration file 
-    #    specified isnside the u-boot script
-    if not socfpgaGenerator.GenerateBootFPGAconf():
-        sys.exit()
+    #    specified inside the u-boot script
+    if socfpgaGenerator.unlicensed_ip_found==False:
+        if not socfpgaGenerator.GenerateBootFPGAconf():
+            sys.exit()
 
     print('\n#############################################################################')
     print('#    Copy files to the partition folders to allow the pre-installment         #')
@@ -1461,7 +1520,7 @@ if __name__ == '__main__':
         compress_output = False
     print('##############################################################################')
 
-    # Unnackage all avalibile archive files such as the rootfs 
+    # Unzip all available archive files such as the rootfs 
     if not socfpgaGenerator.ScanUnpackagePartitions():
         sys.exit()
 
@@ -1479,8 +1538,8 @@ if __name__ == '__main__':
     if _wait_ == 'q' or _wait_ == 'Q':
         sys.exit()
 
-    # Generate with the files inside the partition folder a Image file
-    # Use a date code as a output file
+    # Generate with the files inside the partition folder an Image file
+    # Use a date code as an output file
     if not socfpgaGenerator.GenerateImageFile('','',compress_output,True):
         sys.exit()
     
