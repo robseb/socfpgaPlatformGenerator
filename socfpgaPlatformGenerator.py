@@ -1351,7 +1351,8 @@ class SocfpgaPlatformGenerator:
         try:
             for part in self.PartitionList:
                 # List every file inside the folder
-                part.findFileDirectories(True,os.getcwd()+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False))
+                part.findFileDirectories(True,os.getcwd()+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False), \
+                                         False,True)
         except Exception as ex:
             print(' ERROR: Failed to calculate the total partition size')
             print(' Msg.: '+str(ex))
@@ -1388,7 +1389,8 @@ class SocfpgaPlatformGenerator:
         try:
             for part in self.PartitionList:
                 # List every file inside the folder
-                part.findFileDirectories(True,os.getcwd()+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False))
+                part.findFileDirectories(True,os.getcwd()+'/'+IMAGE_FOLDER_NAME+'/' \
+                            +part.giveWorkingFolderName(False),True,False)
                 # Calculate the total file size of the partition 
                 part.calculatePartitionFilesize(True)
         except Exception as ex:
