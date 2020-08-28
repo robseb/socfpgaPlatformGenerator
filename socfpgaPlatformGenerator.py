@@ -163,7 +163,7 @@ except ModuleNotFoundError as ex:
 
 # 
 #
-# @brief Class for automatisation the entry bootable Linux Distribution generation 
+# @brief Class for automatisation the entire bootable Linux Distribution generation 
 #        for Intel SoC-FPGAs
 #   
 class SocfpgaPlatformGenerator:
@@ -625,7 +625,7 @@ class SocfpgaPlatformGenerator:
     # @brief Build the bootloader for the chosen Intel SoC-FPGA
     #        and copy the output files to the depending partition folders
     # @param generation_mode       0: The User can chose how the bootloader should be build
-    #                              1: Allways build or re-build the entire bootloader 
+    #                              1: Always build or re-build the entire bootloader 
     #                              2: Build the entire bootloader in case it was not done
     #                              3: Use the default pre-build bootloader for the device 
     # @return                      success
