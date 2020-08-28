@@ -250,8 +250,9 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
     The it is possible to copy a other FPGA configuration file to the image partition folder (*No.1 vfat*).
     
     ![Alt text](doc/partitionTable.png?raw=true "Partition table")
-    *Example of a partition table calculated by the script*
-
+  
+    **Example of a partition table calculated by the script** <br>
+    
     In connection the Python script will use the [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) to build the finale bootable image file. 
     The file will be located inside the "*socfpgaPlatformGenerator*" folder. 
 
