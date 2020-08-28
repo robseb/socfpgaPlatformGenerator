@@ -340,7 +340,7 @@ class SocfpgaPlatformGenerator:
 
         # Does the SOF file contains an IP with a test licence, such as a NIOS II Core?
         self.unlicensed_ip_found=False
-        if self.Sof_file_name in "_time_limited":
+        if self.Sof_file_name.find("_time_limited")!=-1: #DE10NANOrsyocto_time_limited.sof
             print('********************************************************************************')
             print('*                   Unlicensed IP inside the project found!                    *')
             print('*                  Generation of ".rbf" file is not possible!                  *')
@@ -1323,6 +1323,7 @@ class SocfpgaPlatformGenerator:
                 # Check that the rbf configuration file is available
                 if not os.path.isfile(dir2copy):
                     print('ERROR: The file to copy does not exist!')
+                    print('File: "'+dir2copy+'"')
                     return False
 
                 # Copy the file to the VFAT folder
