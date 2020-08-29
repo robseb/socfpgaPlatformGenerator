@@ -3,17 +3,16 @@
 ![GitHub](https://img.shields.io/static/v1?label=CentOS&message=7.0,+8.0&color=yellowgreen)
 ![GitHub](https://img.shields.io/static/v1?label=Intel+EDS&message=20.1&color=blue)
 ![GitHub](https://img.shields.io/github/license/robseb/socfpgaPlatformGenerator)
-# Python Script to automaticly generate all necessary components for booting a embedded Linux on a Intel (ALTERA) SoC-FPGA
- build the bootloader (u-boot) and bring all components to a bootable for Intel (ALTERA) SoC-FPGAs 
+# Python Script to automatically generate all necessary components for booting an embedded Linux on Intel (ALTERA) SoC-FPGAs to build the bootloader (u-boot) and bring all components to a bootable image  
 
 ![Alt text](doc/Concept.png?raw=true "Concept illustration")
 
 <br>
 
-**This Python allows to build with the Intel Embedded Development Suite (SoC EDS) the entire bootflow and generates an bootable image (.img) file to boot any Linux Distribution**
+**This Python allows to build with the Intel Embedded Development Suite (SoC EDS) the entire bootflow and generates a bootable image (.img) file to boot any Linux Distributions**
 
-This Python script was designed to automate the always identical build flow for Intel SoC-FPGAs to reduce the possible sources of error during design. It can use the informations provided by the Quartus Prime project to compile and configure the bootloader (u-boot) to boot up an embedded Linux and to configure the FPGA fabric with the Quartus Prime project. During generation it is for the user enabled to select a compatible Yocto Project Linux Distribution or to copy a custom Linux Distribution to a Image folder. The Image folder conatins for every partition of the final SD-Card image a sub-folder. Files copied into these folders will automatically be pre-installed to the depending partition on the bootable SD-Card image. To achieve that is internaly my  [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) used to genrate a image file. 
-Beside the executing of the script as a console application it is also enabled to use the included Python class to implement it into a custom build system. I used it to automate the entre generation of my embedded Linux [*rsyocto*](https://github.com/robseb/rsyocto) for *Intel* *SoC-FPGAs*.
+This Python script was designed to automate the always identical build flow for Intel SoC-FPGAs to reduce the possible sources of error during design. It can use the information provided by the Quartus Prime project to compile and configure the bootloader (u-boot) to boot up an embedded Linux and to configure the FPGA fabric with the Quartus Prime project. During generation it is for the user enabled to select a compatible Yocto Project Linux Distribution or to copy a custom Linux Distribution to an Image folder. The Image folder contains for every partition of the final SD-Card image a sub-folder. Files copied into these folders will automatically be pre-installed to the depending partition on the bootable SD-Card image. To achieve this internally my  [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) is used to generate an image file. 
+Beside the executing of the script as a console application it is also enabled to use the included Python class to implement it into a custom build system. I used it to automate the entire generation of my embedded Linux [*rsyocto*](https://github.com/robseb/rsyocto) for *Intel* *SoC-FPGAs*.
 
 It can run on any modern Linux operating system, such as CentOS or Ubuntu Linux with the pre-installed SoC EDS. 
 
@@ -26,9 +25,9 @@ ___
 * **Installs and uses the *Linaro* cross-platform toolchain**
 * **HPS Memory- and HPS I/O- configuration based on the Quartus Prime project settings**
 * **Allows to use a pre-build bootloader execuatable and default u-boot script**
-* **In case in the u-boot script is configured to load a FPGA configuration the depending FPGA configuration will be generated**
-* **Detects if a compatibile Yocto Project Linux Distribution is available and can copy it to the partition**
-* **Allows to pre-install any files or operating system to the SD-Card image**
+* **In case of the u-boot script is configured to load a FPGA configuration the depending FPGA configuration will be generated**
+* **Detects if a compatible Yocto Project Linux Distribution is available and can copy it to the partition**
+* **Allows to pre-install any files or operating systems to the SD-Card image**
 
 * **Boot image *(.img)* file generation for distributing embedded Linux Distributions**
 * **Up to 4 freely configurable partitions**
@@ -37,9 +36,9 @@ ___
 * **Partition file size check** 
 * **Dynamic mode: Partition size = Size of the files to add to the partition**
 * **An offset can be added to a dynamic size (*e.g. for user space on the running Linux*)**
-* **Linux device tree (*dts*) -files inside a partition can be automatically compiled and replaced with the uncompiled file**  
-* **A u-boot script with the name "*boot.script*" inside a partition can be automatically compiled and replaced with the uncompiled file**
-* **Compressed files *(e.g. "tar.gz")* containing for instance the Linux *rootfs* can be unzip and automatically added to the partition**
+* **Linux device tree (*dts*) -files inside a partition can be automatically compiled and replaced with the un-compiled file**  
+* **An u-boot script with the name "*boot.script*" inside a partition can be automatically compiled and replaced with the un-compiled file**
+* **Compressed files *(e.g. "tar.gz")* containing for instance the Linux *rootfs* can be unzipped and automatically added to the partition**
 * **Image Sizes, Block Sizes, Start Sectors for every partition will be automatically generated for the depending configuration**
 * **The final image file can be compressed to a "*zip*-archive file to reduce the image size**
 
@@ -73,10 +72,10 @@ ___
 For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linux command please follow this step-by-step guide:
     
 * Instal Intel Quartus Prime (18.1 or newer)
-    *    A step-by-step guide how to install Intel Quartus Prime on Linux is available [here](https://github.com/robseb/NIOSII_EclipseCompProject#i-installment-of-intel-quartus-prime-191-and-201-with-nios-ii-support) (*NIOS II support is for this project not requiered*)
+    *    A step-by-step guide how to install Intel Quartus Prime on Linux is available [here](https://github.com/robseb/NIOSII_EclipseCompProject#i-installment-of-intel-quartus-prime-191-and-201-with-nios-ii-support) (*NIOS II support is for this project not required*)
 * Install the Intel Embedded Development Suite (SoC EDS)
     * [Download](https://fpgasoftware.intel.com/soceds/20.1/?edition=standard&platform=windows&download_manager=direct) Intel SoC EDS 20.1 Standard for Linux
-    * Install SoC EDS by executing following Linux console commands
+    * Install SoC EDS by executing the following Linux console commands
         ````shell
         chmod +x SoCEDSSetup-20.1.0.711-linux.run && ./SoCEDSSetup-20.1.0.711-linux.run
         ````
@@ -87,14 +86,13 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
     ````
 * Navigate into your Quartus Prime Project folder with the Linux console
     * The project configurations will then be used to build the bootable image 
-    * Note: The project complabilation must be successfully finished 
-
+    * Note: The project compilation must be successfully done
 * Clone this repository with the following Linux console command
     ````shell
     git clone https://github.com/robseb/socfpgaPlatformGenerator.git
     ````
 
-**The Quartus Project folder should now look like:**
+**The Quartus Project folder should now look like this:**
 
 ![Alt text](doc/project_folder.png?raw=true "Screenshot of the Quartus Prime Project")
 
@@ -119,11 +117,11 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
         
     | File Name | Origin | Description | Disk Partition
     |:--|:--|:--|:--|
-    | \"rootfs.tar.gz\"|copy from the Yocto Project or iniserted by hand| compressed Linux root file system |**2.: ext3** |
+    | \"rootfs.tar.gz\"|copy from the Yocto Project or inserted by hand| compressed Linux root file system |**2.: ext3** |
     |\"u-boot-with-spl.sfp\"| *generated* | *u-boot* bootloader executable |**3.: raw** |
     |\"uboot_cy5.scr\"|*generated*| Secondary bootloader script |**3.: vfat** |
-    |\"zImage\"| copy from the Yocto Project or iniserted by hand | compressed Linux Kernel |**1.: vfat** |    
-    |\"socfpga.dts\"| copy from the Yocto Project or iniserted by hand| Linux Device Tree |**1.: vfat** |
+    |\"zImage\"| copy from the Yocto Project or inserted by hand | compressed Linux Kernel |**1.: vfat** |    
+    |\"socfpga.dts\"| copy from the Yocto Project or inserted by hand| Linux Device Tree |**1.: vfat** |
     |\"socfpga.rbf\"| *generated* | FPGA Config  |**1.: vfat** | 
      
     The following lines show the XML file of a partition configuration for *Intel* *SoC-FPGAs*.
@@ -158,11 +156,11 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
     To change the available user space on the root file system change the *offset* value of the *ext3* partition. 
 
 
-2. **Generation of a directory for every configured partition**
+2. **Generation of a directory for each configured partition**
 
-    The script will generate for every selected partition a depending folder. At this point it is enabled to drag&drop files and folders 
+    The script will generate for each selected partition a depending folder. At this point it is enabled to drag&drop files and folders 
     to the partition folder. This content will then be included in the final image file. 
-    Linux device tree- and archive-files, copied to the partition folder, will be automatically processed by the script incase these features were enabled for the partition inside the XML file. Of cause, archive files or uncompiled device tree files will not be added to the final image. 
+    Linux device tree- and archive-files, copied to the partition folder, will be automatically processed by the script in case these features were enabled for the partition inside the XML file. Of cause, archive files or un-compiled device tree files will not be added to the final image. 
 
     The following illustration shows generated folder structure with the previous XML configuration file.
 
@@ -170,53 +168,53 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
 
 3. **Generation of the *u-boot* bootloader for Intel SoC-FPGA devices**
     
-    The script will ask if the pre-build default bootloader should be used or the entire bootloader should be build. 
-    In case the entire bootloader should be generated the script will do following tasks:
+    The script will ask if the pre-build default bootloader should be used or the entire bootloader should be built. 
+    In case the entire bootloader should be generated the script will do the following tasks:
 	* Download the Limaro cross-platform toolchain 
-	* Generates the Board Support Package (BSP) with the Intel SoC EDS
+	* Generate the Board Support Package (BSP) with the Intel SoC EDS
 	* Clone the (*u-boot-socfpga*)https://github.com/altera-opensource/u-boot-socfpga from Github
-	* Runs the Intel SoC EDS filter script
+	* Run the Intel SoC EDS filter script
 	* Allow deeper *u-boot* configuration with **menuconfig**
 	* Make the *u-boot* bootloader for the Intel SoC-FPGA device
-	* The generated executeable will be copied to the RAW partition folder
+	* The generated executable will be copied to the RAW partition folder
     In case the default bootloader should be used
         * A pre-build bootloader with a default configuration will be copied to the RAW partition folder
 
 4. **Use the Yocto Project output files as Linux Distribution to boot**
 
-     That is stage is required bootloader based on the Quartus Prime project allredy generated. Now it is possible to insert files of a embedded Linux to a image folder.
-     The script will check in the first step if compatible Yocto Project Linux Distribution files available. 
+     At this stage the required bootloader based on the Quartus Prime project is already generated. Now it is possible to insert files of an embedded Linux to an image folder.
+     The script will check in the first step if compatible Yocto Project Linux Distribution files are available. 
      
-     To achieve that will the Python script compare the folders inside following directory *"poky/build/tmp/deploy/images"* with
+     To achieve that the Python script will compare the folders inside the following directory *"poky/build/tmp/deploy/images"* with
      the name of the SoC-FPGA device specified inside the Quartus Prime project. 
      
-     In case a compatible folder is avaibile the script will ask if these files should be used as the embedded Linux Distribution to boot. 
+     In case a compatible folder is available the script will ask if these files should be used as the embedded Linux Distribution for booting. 
      Following message will appear: 
      
      ![Alt text](doc/yovto_msg.png?raw=true "Yocto Project found Message")
 
-5. **Adding the files of a embedded Linux Distribution by hand to the Image folder**
+5. **Adding the files of an embedded Linux Distribution by hand to the Image folder**
 
-    Instead to use the Yocto Project files it is possible to copy the files manually to partition folder. 
-    The files of this partition folder will then be pre-installed on the SD-Card image. 
-    Uncomplied files, like the Linux Device Tree (*".dts"*)- or *u-boot* script (*".script"*) will automaticly complied be
-    the script and only the compliled file will then be copied to the final image. 
-    Compressed files (e.g. "*tar.gz*"), such as the compressed root file system (*rootfs.tar.gz*") will uncompressed, as well. 
-    This feature can be enabled or disabled within the XML configuration file.  
+    Instead of using the Yocto Project files it is possible to copy the files manually to partition folder. 
+    The files of these partition folders will then be pre-installed on the SD-Card image. 
+    Un-compiled files, like the Linux Device Tree (*".dts"*)- or *u-boot* script (*".script"*) will automatically compiled by
+    the script and only the compiled versions will then be copied to the final image. 
+    Compressed files (e.g. "*tar.gz*"), such as the compressed root file system (*rootfs.tar.gz*"), will un-compressed as well. 
+    This feature can be enabled or disabled via the XML configuration file.  
     The following illustration shows the folder structure of the partition folder 
-    (*"socfpgaPlatformGenerator/Image_partitions"*) depending of the XML partition table configurations. 
+    (*"socfpgaPlatformGenerator/Image_partitions"*) depending on the XML partition table configurations. 
     
     ![Alt text](doc/project_folder.png?raw=true "Yocto Project found Message")
 
-    Files copied a partition folder will then be pre-installed on to the depending partition. The following table shows the required file location for *Intel* SoC-FPGAs:
+    Files copied to a partition folder will then be pre-installed onto the depending partition. The following table shows the required file locations for *Intel* SoC-FPGAs:
 
-    | Partition Number | File System Type | Required Files | pre-installed by the script| Note 
+    | Partition Number | File System Type | Required Files | Pre-installed by the script| Note 
     |:--|:--|:--|:--|:--|
     | **1** | *vfat* | Linux compressed Kernel file (*zImage*) | No |
-    | **1** | *vfat* | Linux Device Tree File         (*.dts*) | No | Will be complied by the script
-    | **1** | *vfat* | *u-boot* boot script (*.script*) | Yes | Will be complied by the script
+    | **1** | *vfat* | Linux Device Tree File         (*.dts*) | No | Will be compiled by the script
+    | **1** | *vfat* | *u-boot* boot script (*.script*) | Yes | Will be compiled by the script
     | **1** | *vfat* | FPGA configuration file (*.rbf*) | Yes |Will be created with the Quartus Project 
-    | **2** | *ext3* | compressed root file system (*.tar.gz*) | No |  Will be unziped by the script
+    | **2** | *ext3* | compressed root file system (*.tar.gz*) | No |  Will be unzipped by the script
     | **3** | *RAW* | executable of the bootloader (*.sfp*) | Yes | Will be generated by the script
 
     
@@ -225,10 +223,10 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
 
     *Note: On RAW partitions are only files allowed!*
 
-6. **Chose if the output image should be compressed**
+6. **Choose if the output image should be compressed**
 
-    The Python script allows to compress the generated bootable image files as a *".zip"* aerchive files. 
-    This can strongly reduce the image size.Tools, like "*rufus*" can process this "*.zip*" file directly and can bring it onto a SD-Card. 
+    The Python script allows to compress the generated bootable image files as a *".zip"* archive files. 
+    This can strongly reduce the image size. Tools, like "*rufus*" can process this "*.zip*" file directly and can bring it onto a SD-Card. 
 
 7. **Copy additional files to all partitions or to the root file system (*rootfs*)**
 
@@ -243,11 +241,11 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
 8. **Generation of the bootable image file with custom configuration**
     
     The script will progress the data inside the Partition folders by compiling the Linux device tree, 
-    the u-boot script and will display the partition sizes for the entire image partition of bootable image file.
-    In case the *u-boot* is configred to write the FPGA configuration the script will generate 
-    the depending FPGA configuration file. This only possible if no unlicensed IP is available inside the Quartus Prime Projects. 
-    For instance Quartus Prime projects congaing a Intel NIOS II Soft-Core processor can not be generated. 
-    The it is possible to copy a other FPGA configuration file to the image partition folder (*No.1 vfat*).
+    the u-boot script and will display the partition sizes for the entire image partition of the bootable image file.
+    In case the *u-boot* is configured to write the FPGA configuration the script will generate 
+    the depending FPGA configuration file. This is only possible if no unlicensed IP is available inside the Quartus Prime Project. 
+    For instance Quartus Prime projects containing an Intel NIOS II Soft-Core processor can not be generated. 
+    Then it is possible to copy another FPGA configuration file to the image partition folder (*No.1 vfat*).
     
     ![Alt text](doc/partitionTable.png?raw=true "Partition table")
   
@@ -259,9 +257,9 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
 
 # Getting started as Python library 
 
-Beside the usage of this Python script as an console application it is enabled to use it inside a other Python application.
+Beside the usage of this Python script as a console application it is enabled to use it inside another Python application.
 The "*socfpgaPlatformGenerator*" extends the [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator).
-For more informations about this libary please vist the GitHub reository of this project. 
+For more information about this library please visit the GitHub repository of that project. 
 
 The *socfpgaPlatformGenerator* consists of a single Python class:  
 
@@ -271,12 +269,12 @@ The *socfpgaPlatformGenerator* consists of a single Python class:
 
 The [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) will be automatically cloned from Github. 
 
-The following steps describes in the right sequence the required Python methods to generate a bootable image file for *Intel* SoC-FPGAs:
+The following steps describe in the right sequence the required Python methods to generate a bootable image file for *Intel* SoC-FPGAs:
 
 1. **Generation of the partition table**
 
-   To generate a partition table depending of "*SocFPGABlueprint.xml*" configurations use following methode.
-   Here is check that all required configurations are selected inside the configuration file.
+   To generate a partition table depending on "*SocFPGABlueprint.xml*" configurations use the following method.
+   Here is checked that all required partition configurations are selected inside the configuration file.
     ````python 
     #
     # @brief Create the partition table for Intel SoC-FPGAs by reading the "SocFPGABlueprint" XML-file
@@ -287,12 +285,12 @@ The following steps describes in the right sequence the required Python methods 
 
 2. **Generation of the entire bootloader based of the Quartus Prime Project configuration**
     
-    Use following Python methode to generate the requiered bootloader for *Intel* SoC-FPGAs:
+    Use the following Python method to generate the required bootloader for *Intel* SoC-FPGAs:
     ````python
     #
     # @brief Build the bootloader for the chosen Intel SoC-FPGA
     #        and copy the output files to the depending partition folders
-    # @param generation_mode       0: The User can chose how the bootloader should be build
+    # @param generation_mode       0: The user can choose how the bootloader should be built
     #                              1: Always build or re-build the entire bootloader 
     #                              2: Build the entire bootloader in case it was not done
     #                              3: Use the default pre-build bootloader for the device 
@@ -303,15 +301,15 @@ The following steps describes in the right sequence the required Python methods 
 
 3. **Copy the Yocto Project Linux Distribution files to the partition**
     
-    The following methode can copy the Linux *rootfs*, device tree and the conmpressed Kernel Image form the Yocto Project to the Image partition folder.
+    The following method can copy the Linux *rootfs*, device tree and the compressed Kernel Image from the Yocto Project to the Image partition folder.
     ````python
     #
     # @brief Copy all essential Linux Distribution files (rootfs,zImage,Device Tree) to  
     #        the depending partition
-    # @param copy_mode             0: The User can chose which files should be used 
+    # @param copy_mode             0: The user can choose which files should be used 
     #                              1: Use compatible Yocto Project files
     #                              2: Use the existing files inside the partition
-    # @note                        Use this method allways! It checks if all files are available
+    # @note                        Use this method always! It checks if all files are available
     # @return                      success
     #
     def CopyLinuxFiles2Partition(self,copy_mode=0):
@@ -319,25 +317,25 @@ The following steps describes in the right sequence the required Python methods 
 
 4. **Generate a binary FPGA configuration file**
     
-    The next Python methode allows to generate a FPGA binary configuration file ( *RAW Binary file (.rbf) with Passsive Parallel x8*) incase inside the "*u-boot*" configuration file was selected to write the FPGA configuration durring boot. 
+    The next Python method allows to generate a FPGA binary configuration file ( *RAW Binary file (.rbf) with Passive Parallel x8*) in case inside the "*u-boot*" configuration file was selected to write the FPGA configuration during boot. 
     ````python
     #
-    # @brief Create a FPGA configuration file for configure the FPGA during boot in case this
+    # @brief Create a FPGA configuration file for configuring the FPGA during boot in case this
     #        feature was selected inside the u-boot script
-    # @param copy_file             Only copy and rename a existing rbf file 
+    # @param copy_file             Only copy and rename an existing rbf file 
     # @pram  dir2copy              Directory with the rbf file to copy 
     # @return                      success
     #
     def GenerateBootFPGAconf(self,copy_file=False,dir2copy=''):
     ```` 
 
-5. **Unzip the *rootfs* archvie file**
+5. **Unzip the *rootfs* archive file**
     
-    To unzip the "*rootfs.tar.gz* archive file use following methode. After the execution it is enabled to change the entire partitions and the root file system.
+    To unzip the "*rootfs.tar.gz* archive file use the following method. After the execution it is enabled to change each partition and the root file system.
     
     ````python
     #
-    # @brief Scan every Partition folder and unpackage all archive files such as the rootfs
+    # @brief Scan every Partition folder and un-package all archive files such as the rootfs
     # @return                      success
     #
     def ScanUnpackagePartitions(self):
@@ -345,17 +343,16 @@ The following steps describes in the right sequence the required Python methods 
 
 6. **Generate the output bootable image file**
 
-    The following methode can bring the partition table to a bootable image file (*img*). It is also enabled to zip the output file
+    The following method can bring the partition table to a bootable image file (*img*). It is also enabled to zip the output file
     
     ````python 
     #
     #
-    # @brief Generate a bootable Image file for the selected 
-    #        feature was selected inside the u-boot script
+    # @brief Generate a bootable Image file for the selected configuration
     # @param ImageFileName         Name of the output ".img" image file
     # @param OutputZipFileName     Name of the output ".zip" compressed image file
     # @param compress_output       Compress the output image file to ".zip"
-    # @param print_Table           Print the partatition table 
+    # @param print_Table           Print the partition table 
     # @return                      success
     #
     def GenerateImageFile(self,ImageFileName='',OutputZipFileName='', compress_output=False, \
