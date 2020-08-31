@@ -362,6 +362,12 @@ The following steps describe in the right sequence the required Python methods t
 <br>
 <br>
 
+# Example further implementation inside a custom build script
+
+I designed this Python based build system for my embedded Linux Distribution  [*rsyocto*](https://github.com/robseb/rsyocto).
+The [following guide](https://github.com/robseb/rsyocto/blob/rsYocto-1.04/doc/guides/7_customVersions.md) shows how to design with it an custom *rsyocto* flavor. 
+
+
 ___
 
 # Author
