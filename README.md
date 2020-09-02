@@ -320,13 +320,20 @@ The following steps describe in the right sequence the required Python methods t
     The next Python method allows to generate a FPGA binary configuration file ( *RAW Binary file (.rbf) with Passive Parallel x8*) in case inside the "*u-boot*" configuration file was selected to write the FPGA configuration during boot. 
     ````python
     #
-    # @brief Create a FPGA configuration file for configuring the FPGA during boot in case this
+    # @brief Create a FPGA configuration file for configure the FPGA during boot or with Linux in case this
     #        feature was selected inside the u-boot script
-    # @param copy_file             Only copy and rename an existing rbf file 
-    # @pram  dir2copy              Directory with the rbf file to copy 
+    # @param copy_file             Only copy and rename a existing rbf file 
+    # @param dir2copy              Directory with the rbf file to copy 
+    # @param boot_linux            Generate configuration for
+    #                              False : Writen during boot (Passive Parallel x8; 
+    #                                      File name: <as in uboot script>.rbf)
+    #                              True  : Can be written by Linux (Passive Parallel x16;
+    #                                      File name: <as in uboot script>_linux.rbf)
+    # @param linux_filename        ".rfb" output file name for the configuration with Linux 
+    # @param linux_copydir         the location where the output Linux FPGA configuration file should be copied 
     # @return                      success
     #
-    def GenerateBootFPGAconf(self,copy_file=False,dir2copy=''):
+    def GenerateFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False, linux_filename='', linux_copydir=''):
     ```` 
 
 5. **Unzip the *rootfs* archive file**
