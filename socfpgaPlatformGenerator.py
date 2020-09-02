@@ -24,8 +24,10 @@
 # (2020-07-23) Vers.1.0 
 #   first Version 
 #
-
-version = "1.00"
+# (2020-09-02) Vers. 1.01
+# Generation of a FPGA configuration file that can be written by the HPS 
+#  
+version = "1.01"
 
 #
 #
@@ -163,7 +165,7 @@ except ModuleNotFoundError as ex:
 
 # 
 #
-# @brief Class for automatisation the entire bootable Linux Distribution generation 
+# @brief Class for automatisation the entry bootable Linux Distribution generation 
 #        for Intel SoC-FPGAs
 #   
 class SocfpgaPlatformGenerator:
@@ -306,7 +308,7 @@ class SocfpgaPlatformGenerator:
                     self.Qpf_file_name =file
                     break
 
-        # Find the Quartus  (.sof) file 
+        # Find the Quartus  (.sof) (SRAM Object) file 
         self.Sof_file_name = ''
         self.Sof_folder = ''
         # Looking in the top folder for the sof file
@@ -340,7 +342,7 @@ class SocfpgaPlatformGenerator:
 
         # Does the SOF file contains an IP with a test licence, such as a NIOS II Core?
         self.unlicensed_ip_found=False
-        if self.Sof_file_name.find("_time_limited")!=-1: #DE10NANOrsyocto_time_limited.sof
+        if self.Sof_file_name in "_time_limited":
             print('********************************************************************************')
             print('*                   Unlicensed IP inside the project found!                    *')
             print('*                  Generation of ".rbf" file is not possible!                  *')
@@ -625,7 +627,7 @@ class SocfpgaPlatformGenerator:
     # @brief Build the bootloader for the chosen Intel SoC-FPGA
     #        and copy the output files to the depending partition folders
     # @param generation_mode       0: The User can chose how the bootloader should be build
-    #                              1: Always build or re-build the entire bootloader 
+    #                              1: Allways build or re-build the entire bootloader 
     #                              2: Build the entire bootloader in case it was not done
     #                              3: Use the default pre-build bootloader for the device 
     # @return                      success
@@ -1189,10 +1191,15 @@ class SocfpgaPlatformGenerator:
     # @brief Create a FPGA configuration file for configure the FPGA during boot in case this
     #        feature was selected inside the u-boot script
     # @param copy_file             Only copy and rename a existing rbf file 
-    # @pram  dir2copy              Directory with the rbf file to copy 
+    # @param dir2copy              Directory with the rbf file to copy 
+    # @param boot_linux            Generate configuration for
+    #                              False : Writen during boot (Passive Parallel x8; 
+    #                                      File name: <as in uboot script>.rbf)
+    #                              True  : Can be written by Linux (Passive Parallel x16;
+    #                                      File name: <as in uboot script>_linux.rbf)
     # @return                      success
     #
-    def GenerateBootFPGAconf(self,copy_file=False,dir2copy=''):
+    def GenerateBootFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False):
         print(' --> Check if it is necessary to generate a FPGA configuration file ')
         # Check if a FPGA configuration binary generation is necessary
         # -> Only in case the u-boot script was configured to write the FPGA configuration  
@@ -1246,7 +1253,11 @@ class SocfpgaPlatformGenerator:
                                     break
                             if i > 3:
                                 gen_fpga_conf = True
-                                rbf_config_name_found = line[rbf_start:rbf_end]
+                                if boot_linux:
+                                    rbf_config_name_found = line[rbf_start:rbf_end-3]
+                                    rbf_config_name_found+='_linux.rbf'
+                                else:
+                                    rbf_config_name_found = line[rbf_start:rbf_end]
 
             if self.unlicensed_ip_found==True and not copy_file: 
                 print('\n#############################################################################')
@@ -1285,14 +1296,24 @@ class SocfpgaPlatformGenerator:
                 try:
                     with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
                         time.sleep(DELAY_MS)
-                        print(' --> Generate a new FPGA configuration file')
-                        print('     with the output name "'+rbf_config_name_found+'"')
+                        if not boot_linux:
+                            print(' --> Generate a new FPGA configuration file for writting during boot')
+                            print('     with the output name "'+rbf_config_name_found+'"')
 
-                        b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
-                        edsCmdShell.stdin.write(b) 
+                            b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
+                            edsCmdShell.stdin.write(b) 
+                            
+                            b = bytes('quartus_cpf -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            edsCmdShell.stdin.write(b) 
+                        else:
+                            print(' --> Generate a new FPGA configuration file for writting with the HPS (Linux)')
+                            print('     with the output name "'+rbf_config_name_found+'"')
 
-                        b = bytes('quartus_cpf -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
-                        edsCmdShell.stdin.write(b) 
+                            b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
+                            edsCmdShell.stdin.write(b) 
+                            
+                            b = bytes('quartus_cpf -m=AVSTx8 -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            edsCmdShell.stdin.write(b) 
 
                         edsCmdShell.communicate()
                         time.sleep(DELAY_MS)
@@ -1300,21 +1321,33 @@ class SocfpgaPlatformGenerator:
                 except Exception as ex:
                     print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                     return False
-                
-                # Check that the generated rbf configuration file is now available
+
+                 # Check that the generated rbf configuration file is now available
                 if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
                     print('ERROR: Failed to generate the FPGA configuration file')
                     return False
-
-                # Copy the file to the VFAT folder
-                try:
-                    shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
-                        self.Vfat_folder_dir+'/')
-                except Exception as ex:
-                    print('ERROR: Failed to move the rbf configuration '+ \
-                        'file to the vfat folder MSG:'+str(ex))
-                    return False
-                print('    A new FPGA configuration was generated ')
+                if not boot_linux:
+                    ## For the uboot FPGA configuration file  
+                    # Copy the file to the VFAT folder
+                    try:
+                        shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
+                            self.Vfat_folder_dir+'/')
+                    except Exception as ex:
+                        print('ERROR: Failed to move the rbf configuration '+ \
+                            'file to the vfat folder MSG:'+str(ex))
+                        return False
+                    print('    A new FPGA configuration was generated ')
+                else:
+                    ## For the Linux (HPS) FPGA configuration file  
+                    # Copy the file to the rootfs /hoome folder folder
+                    try:
+                        shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
+                            self.Ext_folder_dir+'/home/root/')
+                    except Exception as ex:
+                        print('ERROR: Failed to move the rbf configuration '+ \
+                            'file to the vfat folder MSG:'+str(ex))
+                        return False
+                    print('    A new FPGA configuration was generated ')
 
             # 3.b Copy an existing FPGA configuration to the partition
             elif gen_fpga_conf and copy_file:
@@ -1323,7 +1356,6 @@ class SocfpgaPlatformGenerator:
                 # Check that the rbf configuration file is available
                 if not os.path.isfile(dir2copy):
                     print('ERROR: The file to copy does not exist!')
-                    print('File: "'+dir2copy+'"')
                     return False
 
                 # Copy the file to the VFAT folder
