@@ -1188,7 +1188,7 @@ class SocfpgaPlatformGenerator:
 
     #
     #
-    # @brief Create a FPGA configuration file for configure the FPGA during boot in case this
+    # @brief Create a FPGA configuration file for configure the FPGA during boot or with Linux in case this
     #        feature was selected inside the u-boot script
     # @param copy_file             Only copy and rename a existing rbf file 
     # @param dir2copy              Directory with the rbf file to copy 
@@ -1197,44 +1197,61 @@ class SocfpgaPlatformGenerator:
     #                                      File name: <as in uboot script>.rbf)
     #                              True  : Can be written by Linux (Passive Parallel x16;
     #                                      File name: <as in uboot script>_linux.rbf)
+    # @param linux_filename        ".rfb" output file name for the configuration with Linux 
+    # @param linux_copydir         the location where the output Linux FPGA configuration file should be copied 
     # @return                      success
     #
-    def GenerateBootFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False):
+    def GenerateFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False, linux_filename='', linux_copydir=''):
         print(' --> Check if it is necessary to generate a FPGA configuration file ')
         # Check if a FPGA configuration binary generation is necessary
         # -> Only in case the u-boot script was configured to write the FPGA configuration  
         if os.path.isfile(self.Vfat_folder_dir+'/boot.script'):
-            print('    Scan VFAT partition for a ".rbf" FPGA config file')
+
             rbf_config_name_found =''
             rbf_config_found =False
             gen_fpga_conf=False
             # 1. Find a rbf file inside the VFAT partition
-            for file in os.listdir(self.Vfat_folder_dir):
-                if os.path.isfile(self.Vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
-                    if rbf_config_found:
-                        print('Note: There are more than one ".rbf" configuration file')
-                        print('      inside the VFAT partition available!')
-                        print('      A new generation of the FPGA configuration is not possible')
-                        rbf_config_name_found=''
-                        return False
-                    else:
-                        rbf_config_name_found=file
-                        rbf_config_found = True
-            # 2.A. Rebuild an existing rbf file: Check that this file is used inside the u-boot script
-            if rbf_config_found and not rbf_config_name_found=='':
-                print('    The file "'+rbf_config_name_found+'" found')
-                b = bytes(rbf_config_name_found, 'utf-8')
-                with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file, \
-                mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
-                    if s.find(b) != -1:
-                        gen_fpga_conf = True
-                
+            if not boot_linux:
+                print('    Scan VFAT partition for a ".rbf" FPGA config file')
+                for file in os.listdir(self.Vfat_folder_dir):
+                    if os.path.isfile(self.Vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
+                        if rbf_config_found:
+                            print('Note: There are more than one ".rbf" configuration file')
+                            print('      inside the VFAT partition available!')
+                            print('      A new generation of the FPGA configuration is not possible')
+                            rbf_config_name_found=''
+                            return False
+                        else:
+                            rbf_config_name_found=file
+                            rbf_config_found = True
+                # 2.A. Rebuild an existing rbf file: Check that this file is used inside the u-boot script
+                if rbf_config_found and not rbf_config_name_found=='':
+                    print('    The file "'+rbf_config_name_found+'" found')
+                    b = bytes(rbf_config_name_found, 'utf-8')
+                    with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file, \
+                    mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
+                        if s.find(b) != -1:
+                            gen_fpga_conf = True
+                    
                 # Remove the old rbf file from the VFAT folder
                 if self.unlicensed_ip_found==False or copy_file:    
                     try:
                         os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
                     except Exception:
                         print('ERROR: Failed to remove the old VFAT FPGA config file')
+            else:
+                if linux_filename=='' or linux_filename.find('.rbf')==-1:
+                    print('Error: The selected Linux FPGA configuration file name is not vailed!')
+                    sys.exit()
+                if not os.path.isdir(linux_copydir):
+                    print('Error: The selected Linux FPGA configuration file copy location is not a dir')
+                    sys.exit()
+                if os.path.isfile(linux_copydir+'/'+linux_filename):
+                    print('    Remove the exsiting Linux FPGA configuration file')
+                    try:
+                        os.remove(linux_copydir+'/'+linux_filename)
+                    except Exception:
+                        print('ERROR: Failed to remove the old Linux FPGA config file from the selected dir')
 
             # 2.B. Build a new rbf file: Check if the u-boot script should write the FPGA configuration
             if not rbf_config_found and rbf_config_name_found=='':
@@ -1254,10 +1271,11 @@ class SocfpgaPlatformGenerator:
                             if i > 3:
                                 gen_fpga_conf = True
                                 if boot_linux:
-                                    rbf_config_name_found = line[rbf_start:rbf_end-3]
-                                    rbf_config_name_found+='_linux.rbf'
+                                    rbf_config_name_found = linux_filename
                                 else:
                                     rbf_config_name_found = line[rbf_start:rbf_end]
+                                
+                                    
 
             if self.unlicensed_ip_found==True and not copy_file: 
                 print('\n#############################################################################')
@@ -1312,7 +1330,7 @@ class SocfpgaPlatformGenerator:
                             b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                             edsCmdShell.stdin.write(b) 
                             
-                            b = bytes('quartus_cpf -m=AVSTx8 -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            b = bytes('quartus_cpf -m FPP -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
 
                         edsCmdShell.communicate()
@@ -1326,6 +1344,7 @@ class SocfpgaPlatformGenerator:
                 if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
                     print('ERROR: Failed to generate the FPGA configuration file')
                     return False
+
                 if not boot_linux:
                     ## For the uboot FPGA configuration file  
                     # Copy the file to the VFAT folder
@@ -1336,18 +1355,18 @@ class SocfpgaPlatformGenerator:
                         print('ERROR: Failed to move the rbf configuration '+ \
                             'file to the vfat folder MSG:'+str(ex))
                         return False
-                    print('    A new FPGA configuration was generated ')
+                    print('    A new FPGA for configuration during boot was generated ')
                 else:
                     ## For the Linux (HPS) FPGA configuration file  
                     # Copy the file to the rootfs /hoome folder folder
                     try:
                         shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
-                            self.Ext_folder_dir+'/home/root/')
+                            linux_copydir+'/')
                     except Exception as ex:
-                        print('ERROR: Failed to move the rbf configuration '+ \
-                            'file to the vfat folder MSG:'+str(ex))
+                        print('ERROR: Failed to move the rbf Linx configuration '+ \
+                            'file to the selected folder MSG:'+str(ex))
                         return False
-                    print('    A new FPGA configuration was generated ')
+                    print('    A new FPGA configuration with Linux was generated ')
 
             # 3.b Copy an existing FPGA configuration to the partition
             elif gen_fpga_conf and copy_file:
@@ -1360,8 +1379,12 @@ class SocfpgaPlatformGenerator:
 
                 # Copy the file to the VFAT folder
                 try:
-                    shutil.copy2(dir2copy,self.Vfat_folder_dir+'/'+ \
-                        rbf_config_name_found)
+                    if not boot_linux:
+                        shutil.copy2(dir2copy,self.Vfat_folder_dir+'/'+ \
+                            rbf_config_name_found)
+                    else:
+                        shutil.copy2(dir2copy,linux_copydir+'/'+ \
+                            linux_filename)
                 except Exception as ex:
                     print('ERROR: Failed to copy the rbf configuration '+ \
                         'file to the vfat folder MSG:'+str(ex))
