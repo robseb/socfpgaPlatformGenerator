@@ -20,7 +20,7 @@
 <!-- 	L 	    => Yes, for the ARMv8A (64-bit) architecture ="arm64" -->
 <!-- 	L 	    => No ="" -->
 <LinuxDistroBlueprint>
-<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" ubootscript="arm" />
-<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" ubootscript="" />
+<partition id="1" type="vfat" size="*" offset="5M" devicetree="Y" unzip="N" ubootscript="arm" />
+<partition id="2" type="ext3" size="*" offset="500M" devicetree="N" unzip="Y" ubootscript="" />
 <partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" ubootscript="" />
 </LinuxDistroBlueprint>
