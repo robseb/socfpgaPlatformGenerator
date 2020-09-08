@@ -54,9 +54,30 @@ fatload mmc 0:1 ${ramdisk_addr_r} socfpga.rbf
  
 echo --- write the FPGA configuration ---
 fpga load 0 ${ramdisk_addr_r} ${filesize}
- 
- echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
- bridge enable;
+
+echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
+bridge enable;
+
+echo --- enable FPGA2HPS peripherals access --
+
+echo     for I2C,CAN,UART,TIM
+mw.w 0xFF80000C 0x7FF
+  
+echo     for GPIO
+mw.w 0xFF800010 0x3FC
+
+echo     for OSC
+mw.b 0xFF800014 0x60  
+
+echo     for SPI
+mw.b 0xFF800018 0x03
+
+echo     for on-chip RAM
+mw.b 0xFF800098 0x01
+
+echo     Reset Bridges 
+mw.b 0xFFD0501C 0x0  
+
  
  echo --- Booting the Yocto Linux ---
  echo -> load linux kernel image and device tree to memory
