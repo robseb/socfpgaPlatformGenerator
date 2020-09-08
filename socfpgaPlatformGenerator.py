@@ -25,9 +25,13 @@
 #   first Version 
 #
 # (2020-09-02) Vers. 1.01
-# Generation of a FPGA configuration file that can be written by the HPS 
-#  
-version = "1.01"
+#  Generation of a FPGA configuration file that can be written by the HPS 
+#
+# (2020-09-08) Vers. 1.02
+#  Fixing a issue with non licence IP inside Quartus Prime projects   
+#
+
+version = "1.02"
 
 #
 #
@@ -342,7 +346,7 @@ class SocfpgaPlatformGenerator:
 
         # Does the SOF file contains an IP with a test licence, such as a NIOS II Core?
         self.unlicensed_ip_found=False
-        if self.Sof_file_name in "_time_limited":
+        if self.Sof_file_name.find("_time_limited")!=-1:
             print('********************************************************************************')
             print('*                   Unlicensed IP inside the project found!                    *')
             print('*                  Generation of ".rbf" file is not possible!                  *')
@@ -1235,10 +1239,11 @@ class SocfpgaPlatformGenerator:
                     
                 # Remove the old rbf file from the VFAT folder
                 if self.unlicensed_ip_found==False or copy_file:    
-                    try:
-                        os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
-                    except Exception:
-                        print('ERROR: Failed to remove the old VFAT FPGA config file')
+                    if os.path.isfile(self.Vfat_folder_dir+'/'+rbf_config_name_found):
+                        try:
+                            os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
+                        except Exception:
+                            print('ERROR: Failed to remove the old VFAT FPGA config file')
             else:
                 if linux_filename=='' or linux_filename.find('.rbf')==-1:
                     print('Error: The selected Linux FPGA configuration file name is not vailed!')
@@ -1276,7 +1281,6 @@ class SocfpgaPlatformGenerator:
                                     rbf_config_name_found = line[rbf_start:rbf_end]
                                 
                                     
-
             if self.unlicensed_ip_found==True and not copy_file: 
                 print('\n#############################################################################')
                 print('#        Your Quartus Prime project contains unlicend demo IPs               #')
