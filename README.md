@@ -64,6 +64,7 @@ ___
     * **EDS 20.1 (Linux)**
 * **Supported Intel SoC-FPGAs**
     * **Intel Cyclone V**
+    * **Intel Arria 10 SX**
 ___
 <br>
 

@@ -30,8 +30,11 @@
 # (2020-09-08) Vers. 1.02
 #  Fixing a issue with non licence IP inside Quartus Prime projects   
 #
+# (2020-09-09) Vers. 1.03
+#  Arria 10 SX support   
+#
 
-version = "1.02"
+version = "1.03"
 
 #
 #
@@ -47,6 +50,13 @@ QURTUS_DEF_FOLDER         = "intelFPGA"
 QURTUS_DEF_FOLDER_LITE    = "intelFPGA_lite"
 EDS_EMBSHELL_DIR          = "/embedded/embedded_command_shell.sh"
 BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
+
+# Arria 10 only
+U_BOOT_IMAGE_FILE_NAME  ='u-boot.img'
+SPL_OUTPUT_FILE_NAME    ='spl_w_dtb-mkpimage.bin'
+SPL_INPUT_FILE_NAME     ='u-boot-spl-dtb.bin'
+FIT_FPGA_FILE_NAME      ='fit_spl_fpga.itb'
+
 
 YOCTO_BASE_FOLDER         = 'poky'
 
@@ -85,18 +95,50 @@ INTELSOCFPGA_BLUEPRINT_XML_FILE ='<?xml version="1.0" encoding = "UTF-8" ?>\n'+\
     '<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" />\n'+\
     '</LinuxDistroBlueprint>\n'
 
-# "u-boot-socfpga" QTS file location directory 
-u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/arria5-socdk/qts/', \
-                    '/board/altera/arria10-socdk/qts/']
+#
+# Run the bootloader filter script (Cyclone V) 
+#                        
+#        Cyclone V    |  Arria V     | Arria 10 
 
+
+run_filter_script =[True, True, False]
+
+u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/arria5-socdk/qts/', \
+                    ' ']
+
+#
+# Generate the bootable SPL image file
+#                        
+#        Cyclone V    |  Arria V     | Arria 10 
+
+generate_spl_image_file = [False,False,True]
+
+
+
+#
 # "u-boot-socfpga deconfig" file name for make (u-boot-socfpga/configs/)
+#                                Cyclone V    |  Arria V     | Arria 10 
 u_boot_defconfig_list = ['socfpga_cyclone5_defconfig', 'socfpga_arria5_defconfig', \
                     'socfpga_arria10_defconfig']
 
-limaro_version_list = ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf']
-limaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz']
+#                                Cyclone V    |  Arria V     | Arria 10 
+limaro_version_list = ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf','gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf',\
+    'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf']
+limaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
+    'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz', \
+        'https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
+    'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz', \
+        'https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
+    'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz']
 
-gcc_toolchain_path_list= ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH']
+#                                Cyclone V    |  Arria V     | Arria 10 
+gcc_toolchain_path_list= ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH', \
+                'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH', \
+                    'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH']
+
+#
+# 
+#
 
 
 #
@@ -181,7 +223,7 @@ class SocfpgaPlatformGenerator:
     Sof_file_name               : str # Name of the Quartus Project ".sof"-file
     Qsys_file_name              : str # Name of the Quartus Project ".qsys"-file
     Handoff_folder_name         : str # Name of the Quartus Project Hand-off folder
-    Uboot_default_preBuild_dir  : str # Directory of the pre-build u-boot for the device 
+    UbootSPL_default_preBuild_dir  : str # Directory of the pre-build u-boot for the device 
     Quartus_bootloder_dir       : str # Directory of the Quartus Project "/software/bootloader"-folder
     Sof_folder                  : str # Name of the Quartus Project folder containing the ".sof"-file 
     U_boot_socfpga_dir          : str # Directory of u-boot SoC-FPGA folder 
@@ -435,15 +477,37 @@ class SocfpgaPlatformGenerator:
             '''
             elif device_name_temp == 'Arria V':
                 self.Device_id = 1
-            elif device_name_temp == 'Arria 10':
-                self.Device_id = 2
             '''
-            ## NOTE: ADD ARRIA V/10 SUPPORT HERE 
+        elif device_name_temp == 'Arria 10':
+            self.Device_id = 2
+        
+            ## NOTE: ADD ARRIA V/ SUPPORT HERE 
         else:
             print('Error: Your Device ('+device_name_temp+') is not supported right now!')
             print('       I am working on it...')
             sys.exit()
         print('     Device Name:"'+device_name_temp+'"') 
+
+
+        # For Arria 10 SX: The early I/O release must be enabled inside Quartus Prime!
+        early_io_mode =-1
+        if self.Device_id == 2:
+            for it in root.iter('config'):
+                name = str(it.get('name'))
+                if name == 'chosen.early-release-fpga-config':
+                    early_io_mode = int(it.get('value'))
+                    break
+            
+            if not early_io_mode==1:
+                print('ERROR: This build system supports only the Arria 10 SX SoC-FPGA')
+                print('       with the Early I/O release feature enabled!')
+                print('       Please enable Early I/O inside the Quartus Prime project settings')
+                print('       and rebuild the project again')
+                print('Setting: "Enables the HPS early release of HPS IO" inside the general settings')
+                print('Note:    Do not forget to enable it for the EMIF')
+                sys.exit()
+            else:
+                print('--> HPS early release of HPS IO is enabled')
 
         self.Uboot_default_file_dir =''
         # Find the depending default u-boot script file 
@@ -454,14 +518,30 @@ class SocfpgaPlatformGenerator:
         if self.Uboot_default_file_dir =='':
             print('NOTE: No depending default u-boot script file is available for this device!')
 
-        # Find the depending default pre-build u-boot 
-        self.Uboot_default_preBuild_dir =''
+        # Find the depending default pre-build u-boot or SPL file
+        self.UbootSPL_default_preBuild_dir =''
         for name in os.listdir(excpath+'/ubootDefaultSFP'):
-            if  os.path.isfile(excpath+'/ubootDefaultSFP/'+name) and \
-            (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
-                self.Uboot_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
-        if self.Uboot_default_preBuild_dir =='':
-            print('NOTE: No depending default u-boot pre-build file is available for this device!')
+                # Find the u-boot .spl executable for other devices 
+                if  os.path.isfile(excpath+'/ubootDefaultSFP/'+name) and \
+                (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
+                    self.UbootSPL_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
+
+        if self.UbootSPL_default_preBuild_dir =='':
+            print('NOTE: No depending default SPL u-boot pre-build file is available for this device!')
+
+         # Find the depending default pre-build u-boot or SPL file
+        self.UbootIMG_default_preBuild_dir =''
+         # Only for the Arria 10 SX:
+        if generate_spl_image_file[self.Device_id]: 
+            for name in os.listdir(excpath+'/ubootDefaultIMG'):
+                    # Find the u-boot .img executable for other devices 
+                    if  os.path.isfile(excpath+'/ubootDefaultIMG/'+name) and \
+                    (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
+                        self.UbootIMG_default_preBuild_dir=excpath+'/ubootDefaultIMG/'+name
+
+            if self.UbootIMG_default_preBuild_dir =='':
+                print('NOTE: No depending default u-boot.img Image pre-build file is available for this device!')
+
         
     ##################################### Update "LinuxBootImageFileGenerator" ####################################################
         print('-> Pull the latest "LinuxBootImageFileGenerator" Version from GitHub!')
@@ -470,7 +550,7 @@ class SocfpgaPlatformGenerator:
 
     ############################### Create "software/bootloader" folder inside Quartus project  ###################################
         if not os.path.isdir(self.Quartus_proj_top_dir+'/'+'software'):
-            print('-> Create the folder software')
+            print('--> Create the folder software')
             try:
                 os.mkdir(self.Quartus_proj_top_dir+'/'+'software')      
             except Exception as ex:
@@ -479,7 +559,7 @@ class SocfpgaPlatformGenerator:
         self.Quartus_bootloder_dir = self.Quartus_proj_top_dir+'/'+'software'+'/'+'bootloader'
         self.Bootloader_available =False
         if not os.path.isdir(self.Quartus_bootloder_dir):
-            print('-> Create the folder bootloader')
+            print('--> Create the folder bootloader')
             try:
                 os.mkdir(self.Quartus_bootloder_dir)      
             except Exception as ex:
@@ -643,7 +723,13 @@ class SocfpgaPlatformGenerator:
         use_default_bootloader = False
         excpath = os.getcwd()
 
-        if (self.Bootloader_available and os.path.isfile(self.Raw_folder_dir+'/'+'u-boot-with-spl.sfp')):
+        if (self.Bootloader_available and os.path.isfile(self.Raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)\
+            and  generate_spl_image_file[self.Device_id]):
+            bootloader_build_required = False
+
+                   # Check that the SPL output file is avalibile
+        if (not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME)) and \
+             generate_spl_image_file[self.Device_id]:
             bootloader_build_required = False
 
         if generation_mode==1:
@@ -680,6 +766,24 @@ class SocfpgaPlatformGenerator:
             elif __wait2__ =='D' or __wait2__=='d':
                 use_default_bootloader = True
                 bootloader_build_required=False
+
+
+            
+        # Find the RAW Partition and 
+        self.Raw_folder_dir =''
+        for part in self.PartitionList:
+            if part.type_hex=='a2':
+                self.Raw_folder_dir=excpath+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)
+            if part.type_hex=='b':
+                self.Vfat_folder_dir=excpath+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)
+        if self.Raw_folder_dir =='':
+            print('ERROR: The chosen partition table has no RAW/NONE-partition.')
+            print('       That is necessary for the bootloader')
+            return False
+        if self.Vfat_folder_dir =='' and generate_spl_image_file[self.Device_id]:
+            print('ERROR: The chosen partition table no VFAT/FAT32 partition.')
+            print('       That is necessary for the bootloader')
+            return False
     ############################################  Use the default pre-build bootloader   ################################################
         if use_default_bootloader: 
             print('--> Use the default pre-build bootloader')
@@ -687,10 +791,23 @@ class SocfpgaPlatformGenerator:
                 print('ERROR: The u-boot default pre-build folder "ubootDefaultSFP" is not available')
                 return False
             try:
-                shutil.copy2(self.Uboot_default_preBuild_dir,self.Raw_folder_dir+'/u-boot-with-spl.sfp')
+                # Only for the Arria 10 SX:
+                if generate_spl_image_file[self.Device_id]: 
+                    #  Copy the SPL BootROM File to the RAW 
+                    shutil.copy2(self.UbootSPL_default_preBuild_dir,
+                        self.Raw_folder_dir+'/'+SPL_OUTPUT_FILE_NAME)
+                    # Copy the u-boot image to the VFAT partition
+                    shutil.copy2(self.UbootIMG_default_preBuild_dir,
+                        self.Vfat_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
+                    
+                else:
+                    # For other devices: Copy the u-boot exe 
+                    shutil.copy2(self.UbootSPL_default_preBuild_dir,
+                        self.Raw_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
             except Exception as ex:
                 print('ERROR: Failed to copy the pre-build file to the RAW folder MSG='+str(ex))
                 return False
+     
             
     ################################################  Install the Linaro toolchain  #####################################################
         if bootloader_build_required:
@@ -787,42 +904,44 @@ class SocfpgaPlatformGenerator:
                     print('       cloning done')
 
     ################################################## Find the EDS Filter script ##############ä####################################
-                eds_filter_script_dir = '/'+'arch'+'/'+ \
-                                        'arm'+'/'+'mach-socfpga'+'/'+'qts-filter.sh'
-                # Find the filter script
-                if not os.path.isfile(self.U_boot_socfpga_dir+eds_filter_script_dir):
-                    print('ERROR: The EDS Filter script is not available on the default directory')
-                    print('       "/arch/arm/mach-socfpga/qts-filter.sh"')
-                    return False
-                # Find the BPS for the selected device inside u-boot
-                u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[self.Device_id]
-                if not os.path.isdir(self.U_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
-                    print('Error: The u-boot BSP QTS direcorory is for the device not available!')
-                    print('       '+u_boot_bsp_qts_dir)
-                    return False
-    ####################################################### Run EDS filter script ################################################
-                print('--> Run the Intel EDS Filter script')
-                with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-                    time.sleep(DELAY_MS)
-                    b = bytes('cd '+self.Quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
-                    edsCmdShell.stdin.write(b) 
-                    #
-                    # 
-                    # soc_type      - Type of SoC, either 'cyclone5' or 'arria5'.
-                    # input_qts_dir - Directory with compiled Quartus project
-                    #                and containing the Quartus project file (QPF).
-                    # input_bsp_dir - Directory with generated bsp containing
-                    #                 the settings.bsp file.
-                    # output_dir    - Directory to store the U-Boot compatible
-                    #                 headers.
+                # Only if it is required for the device
+                if run_filter_script[self.Device_id]:
+                    eds_filter_script_dir = '/'+'arch'+'/'+ \
+                                            'arm'+'/'+'mach-socfpga'+'/'+'qts-filter.sh'
+                    # Find the filter script
+                    if not os.path.isfile(self.U_boot_socfpga_dir+eds_filter_script_dir):
+                        print('ERROR: The EDS Filter script is not available on the default directory')
+                        print('       "/arch/arm/mach-socfpga/qts-filter.sh"')
+                        return False
+                    # Find the BPS for the selected device inside u-boot
+                    u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[self.Device_id]
+                    if not os.path.isdir(self.U_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
+                        print('Error: The u-boot BSP QTS direcorory is for the device not available!')
+                        print('       '+u_boot_bsp_qts_dir)
+                        return False
+        ####################################################### Run EDS filter script ################################################
+                    print('--> Run the Intel EDS Filter script')
+                    with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                        time.sleep(DELAY_MS)
+                        b = bytes('cd '+self.Quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
+                        edsCmdShell.stdin.write(b) 
+                        #
+                        # 
+                        # soc_type      - Type of SoC, either 'cyclone5' or 'arria5'.
+                        # input_qts_dir - Directory with compiled Quartus project
+                        #                and containing the Quartus project file (QPF).
+                        # input_bsp_dir - Directory with generated bsp containing
+                        #                 the settings.bsp file.
+                        # output_dir    - Directory to store the U-Boot compatible
+                        #                 headers.
 
-                    b = bytes('./'+eds_filter_script_dir+' '+self.Socfpga_devices_list[self.Device_id]+' ../../../ ../ ' \
-                            '.'+u_boot_bsp_qts_dir+'  \n','utf-8')
-                    edsCmdShell.stdin.write(b) 
-                    #time.sleep(10*DELAY_MS)
+                        b = bytes('./'+eds_filter_script_dir+' '+self.Socfpga_devices_list[self.Device_id]+' ../../../ ../ ' \
+                                '.'+u_boot_bsp_qts_dir+'  \n','utf-8')
+                        edsCmdShell.stdin.write(b) 
+                        #time.sleep(10*DELAY_MS)
 
-                    edsCmdShell.communicate()
-                    time.sleep(3*DELAY_MS)
+                        edsCmdShell.communicate()
+                        time.sleep(3*DELAY_MS)
             
             except Exception as ex:
                 print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
@@ -969,13 +1088,13 @@ class SocfpgaPlatformGenerator:
                     return False
 
             # Check that u-boot output file is there 
-            if not os.path.isfile(self.U_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp') or \
+            if not os.path.isfile(self.U_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME) or \
                 not os.path.isfile(self.U_boot_socfpga_dir+'/'+'u-boot.img'):
                 print('ERROR: u-boot build failed!')
                 return False
 
             # Read the creation date of the output files to check that the files are new
-            modification_time = os.path.getmtime(self.U_boot_socfpga_dir+'/'+'u-boot-with-spl.sfp') 
+            modification_time = os.path.getmtime(self.U_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME) 
             current_time =  datetime.now().timestamp()
 
             # Offset= 5 min 
@@ -983,33 +1102,93 @@ class SocfpgaPlatformGenerator:
                 print('Error: u-boot build failed!')
 
             print('--> "u-boot-socfpga" build was successfully')
-        # u-boot build
-
-    ####################################### Copy the bootloader files to the partition #######################################
-        print(' --> Copy the bootloader file "'+BOOTLOADER_FILE_NAME+'" to the RAW partition')
-
-        # Find the RAW Partition and 
-        self.Raw_folder_dir =''
-        for part in self.PartitionList:
-            if part.type_hex=='a2':
-                self.Raw_folder_dir=excpath+'/'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)
-        if self.Raw_folder_dir =='':
-            print('ERROR: The chosen partition table has now RAW/NONE-partition.')
-            print('       That is necessary for the bootloader')
-            return False
         
-        # Copy the bootloader file 
+    ####################################### Create the bootable SPL (for Arria 10) #######################################
+            if generate_spl_image_file[self.Device_id]: 
+                print('---> Generate the bootable SPL (for the BootROM of the Arria 10)')
+                if not os.path.isfile(self.U_boot_socfpga_dir+'/'+U_BOOT_IMAGE_FILE_NAME):
+                    print('ERROR: The u-boot output file "u-boot.img" does not exsist!')
+                    print('        The u-boot build faild!')
+                    return False
+                if not os.path.isdir(self.U_boot_socfpga_dir+'/spl'):
+                    print('ERROR: The u-boot output folder "/spl" does not exsist!')
+                    print('        A proper bootloader generation is not posibile!')
+                    return False
+                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_INPUT_FILE_NAME):
+                    print('ERROR: The bootloader generation failed!')
+                    print('       The output file "'+SPL_INPUT_FILE_NAME+'" was')
+                    print('       not generated during compilation of u-boot!')
+                    return False
+                try:
+                    with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                        time.sleep(DELAY_MS)
+                        b = bytes('cd '+self.U_boot_socfpga_dir+'/spl\n','utf-8')
+                        edsCmdShell.stdin.write(b) 
+                        #
+                        # mkpimage -hv 1 -o spl/spl_w_dtb-mkpimage.bin \
+                        # spl/u-boot-spl-dtb.bin spl/u-boot-spl-dtb.bin \
+                        # spl/u-boot-spl-dtb.bin spl/u-boot-spl-dtb.bin
+                        #
+                        # --- mkpimage ---
+                        # Description: This tool creates an Altera BootROM-compatible image of Second
+                        # Stage Boot Loader (SSBL). The input and output files are in binary format.
+                        # It can also decode and check the validity of previously generated image.
+                        #
+                        # to create a quad image: 
+                        # mkpimage [options] -hv <num> -o <outfile> <infile> <infile> <infile> <infile>
+                        #
+                        #   -hv ->  Header version to be created (Arria/Cyclone V = 0, Arria 10 = 1)
+                        #   -o  -> Output file, relative and absolute path supported
+
+                        b = bytes(' mkpimage -hv 1 -o '+SPL_OUTPUT_FILE_NAME+' '+SPL_INPUT_FILE_NAME+\
+                            ' '+SPL_INPUT_FILE_NAME+' '+SPL_INPUT_FILE_NAME+' '\
+                                +SPL_INPUT_FILE_NAME+' \n','utf-8')
+
+                        edsCmdShell.stdin.write(b) 
+                        #time.sleep(10*DELAY_MS)
+
+                        edsCmdShell.communicate()
+                        time.sleep(3*DELAY_MS)
+                except Exception as ex:
+                    print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
+                    return False
+
+                # Check that the SPL output file is avalibile
+                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME):
+                    print('ERROR: The bootloader SPL generation failed!')
+                    print('       The output file "'+SPL_OUTPUT_FILE_NAME+'" was')
+                    print('       not generated with the SoC EDS command "mkpimage"')
+                    return False
+                print('    "u-boot-socfpga" spl generation was successful')        
+
+####################################### Copy the bootloader files to the partition #######################################
+            print(' --> Copy the bootloader file "'+BOOTLOADER_FILE_NAME+'" to the RAW partition')
+        # end if -> re-build u-boot
+  #########################################################  Copy the bootloader file #########################################################
         if bootloader_build_required and not use_default_bootloader:
             print('--> Copy the bootloader executable to the partition')
+            
             try:
-                shutil.copy2(self.U_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
-                    self.Raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
+                # Only for the Arria 10 SX: 
+                if generate_spl_image_file[self.Device_id]: 
+                    # Copy the SPL BootROM File to the RAW partition
+                    shutil.copy2(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME,
+                        self.Raw_folder_dir+'/'+SPL_OUTPUT_FILE_NAME)
+                    # Copy the u-boot bootloader to the VFAT partition
+                    shutil.copy2(self.U_boot_socfpga_dir+'/'+U_BOOT_IMAGE_FILE_NAME,
+                        self.Vfat_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
+                else:
+                    # For other devices: Copy the u-boot exe 
+                    shutil.copy2(self.U_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
+                        self.Raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
             except Exception as ex:
-                print('ERORR: Failed to copy the bootloader file! MSG: '+str(ex))
+                print('ERORR: Failed to copy the SPL file! MSG: '+str(ex))
                 return False
-
+     
         print('     = Done')
         return True
+    
+
     
     #
     #
@@ -1127,6 +1306,8 @@ class SocfpgaPlatformGenerator:
                 if __wait3__ =='m' or __wait3__=='M':
                     yocto_project_available=False
                     linux_files_available = False
+            else:
+                __wait3__ =' '
             
         if yocto_project_available:
                 print('--> Copy the Yocto Project files to the "'+IMAGE_FOLDER_NAME+'" folder')
@@ -1159,23 +1340,33 @@ class SocfpgaPlatformGenerator:
             if copy_mode==0:
                 print('--> Please copy the files manually to the Image folder')
                 __wait7__ = input('Type anything to continue ... ')
-                if __wait3__ =='q' or __wait3__=='Q':
+                if __wait7__ =='q' or __wait7__=='Q':
                     sys.exit()
 
     ################################## Create the bootloader configuration file "extlinux.conf" ################################### 
+        
         '''
         if not os.path.isfile(self.Vfat_folder_dir+'/extlinux/extlinux.conf'):
             print('--> Create boot configuration file "extlinux.conf" ')
             if not os.path.isdir(self.Vfat_folder_dir+'/extlinux'):
                 os.mkdir(self.Vfat_folder_dir+'/extlinux')
-
-            with open(self.Vfat_folder_dir+'/extlinux/extlinux.conf', "a") as f:
-                f.write('LABEL Linux Default\n')
-                f.write('   KERNEL ../zImage\n')
-                f.write('   FDT ../socfpga_cyclone5_socdk.dtb\n')
-                f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
-        '''
-
+            if self.Device_id== 0:
+                # for the Cyclone V
+                with open(self.Vfat_folder_dir+'/extlinux/extlinux.conf', "a") as f:
+                    f.write('LABEL Linux Default\n')
+                    f.write('   KERNEL ../zImage\n')
+                    f.write('   FDT ../socfpga_cyclone5_socdk.dtb\n')
+                    f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
+            
+            elif self.Device_id==2:
+                # for the Arria 10
+                with open(self.Vfat_folder_dir+'/extlinux/extlinux.conf', "a") as f:
+                    f.write('LABEL Arria10 SOCDK SDMMC\n')
+                    f.write('   KERNEL ../zImage\n')
+                    f.write('   FDT ../socfpga_arria10_socdk_sdmmc.dtb\n')
+                    f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
+        '''  
+   
     ############################################ Create the u-boot script "boot.script" ########################################## 
         if not os.path.isfile(self.Vfat_folder_dir+'/boot.scr'):
             print('--> Copy the default "boot.script" partition')
@@ -1207,6 +1398,12 @@ class SocfpgaPlatformGenerator:
     #
     def GenerateFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False, linux_filename='', linux_copydir=''):
         print(' --> Check if it is necessary to generate a FPGA configuration file ')
+
+        if self.Device_id==2 and boot_linux:
+            print('ERROR: FPGA configuration file that can be written by Linux (HPS)')
+            print('       is for the Arria 10 SX right now not supported!')
+            return False
+
         # Check if a FPGA configuration binary generation is necessary
         # -> Only in case the u-boot script was configured to write the FPGA configuration  
         if os.path.isfile(self.Vfat_folder_dir+'/boot.script'):
@@ -1214,43 +1411,46 @@ class SocfpgaPlatformGenerator:
             rbf_config_name_found =''
             rbf_config_found =False
             gen_fpga_conf=False
+            early_io_mode =False
             # 1. Find a rbf file inside the VFAT partition
             if not boot_linux:
-                print('    Scan VFAT partition for a ".rbf" FPGA config file')
-                for file in os.listdir(self.Vfat_folder_dir):
-                    if os.path.isfile(self.Vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
-                        if rbf_config_found:
-                            print('Note: There are more than one ".rbf" configuration file')
-                            print('      inside the VFAT partition available!')
-                            print('      A new generation of the FPGA configuration is not possible')
-                            rbf_config_name_found=''
-                            return False
-                        else:
-                            rbf_config_name_found=file
-                            rbf_config_found = True
-                # 2.A. Rebuild an existing rbf file: Check that this file is used inside the u-boot script
-                if rbf_config_found and not rbf_config_name_found=='':
-                    print('    The file "'+rbf_config_name_found+'" found')
-                    b = bytes(rbf_config_name_found, 'utf-8')
-                    with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file, \
-                    mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
-                        if s.find(b) != -1:
-                            gen_fpga_conf = True
-                    
-                # Remove the old rbf file from the VFAT folder
-                if self.unlicensed_ip_found==False or copy_file:    
-                    if os.path.isfile(self.Vfat_folder_dir+'/'+rbf_config_name_found):
-                        try:
-                            os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
-                        except Exception:
-                            print('ERROR: Failed to remove the old VFAT FPGA config file')
+                if not self.Device_id==2:
+                    print('    Scan VFAT partition for a ".rbf" FPGA config file')
+                    for file in os.listdir(self.Vfat_folder_dir):
+                        if os.path.isfile(self.Vfat_folder_dir+'/'+file) and file.endswith('.rbf'):
+                            if rbf_config_found:
+                                print('Note: There are more than one ".rbf" configuration file')
+                                print('      inside the VFAT partition available!')
+                                print('      A new generation of the FPGA configuration is not possible')
+                                rbf_config_name_found=''
+                                return False
+                            else:
+                                rbf_config_name_found=file
+                                rbf_config_found = True
+
+                    # 2.A. Rebuild an existing rbf file: Check that this file is used inside the u-boot script
+                    if rbf_config_found and not rbf_config_name_found=='':
+                        print('    The file "'+rbf_config_name_found+'" found')
+                        b = bytes(rbf_config_name_found, 'utf-8')
+                        with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file, \
+                        mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
+                            if s.find(b) != -1:
+                                gen_fpga_conf = True
+                        
+                    # Remove the old rbf file from the VFAT folder
+                    if self.unlicensed_ip_found==False or copy_file:    
+                        if os.path.isfile(self.Vfat_folder_dir+'/'+rbf_config_name_found):
+                            try:
+                                os.remove(self.Vfat_folder_dir+'/'+rbf_config_name_found)
+                            except Exception:
+                                print('ERROR: Failed to remove the old VFAT FPGA config file')
             else:
                 if linux_filename=='' or linux_filename.find('.rbf')==-1:
                     print('Error: The selected Linux FPGA configuration file name is not vailed!')
-                    sys.exit()
+                    return False
                 if not os.path.isdir(linux_copydir):
                     print('Error: The selected Linux FPGA configuration file copy location is not a dir')
-                    sys.exit()
+                    return False
                 if os.path.isfile(linux_copydir+'/'+linux_filename):
                     print('    Remove the exsiting Linux FPGA configuration file')
                     try:
@@ -1279,8 +1479,21 @@ class SocfpgaPlatformGenerator:
                                     rbf_config_name_found = linux_filename
                                 else:
                                     rbf_config_name_found = line[rbf_start:rbf_end]
-                                
-                                    
+
+                # Convert HPS early I/O Config file
+                rbf_config_name_body =''
+                if rbf_config_name_found.find('.periph')!=-1:
+                    st = rbf_config_name_found.find('.periph')
+                    rbf_config_name_found = rbf_config_name_found[:st]+rbf_config_name_found[st+7:]
+                    rbf_config_name_body = rbf_config_name_found[:st]
+                elif rbf_config_name_found.find('.core')!=-1:
+                    st = rbf_config_name_found.find('.core')
+                    rbf_config_name_found = rbf_config_name_found[:st]+rbf_config_name_found[st+5:]
+                    rbf_config_name_body = rbf_config_name_found[:st]
+                else:
+                    st = rbf_config_name_found.find('.rbf')
+                    rbf_config_name_body[:st]
+                
             if self.unlicensed_ip_found==True and not copy_file: 
                 print('\n#############################################################################')
                 print('#        Your Quartus Prime project contains unlicend demo IPs               #')
@@ -1319,21 +1532,28 @@ class SocfpgaPlatformGenerator:
                     with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
                         time.sleep(DELAY_MS)
                         if not boot_linux:
-                            print(' --> Generate a new FPGA configuration file for writting during boot')
+                            print(' --> Generate a new FPGA configuration file for configuration during boot')
                             print('     with the output name "'+rbf_config_name_found+'"')
 
                             b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                             edsCmdShell.stdin.write(b) 
+
+                            # Enable HPS Early I/O Realse mode for the Arria 10 SX 
+                            if self.Device_id==2: 
+                                pre_fix =' --hps '
+                                print('NOTE: The FPGA configuration wil be in HPS early I/O realse mode generated')
+                            else:
+                                pre_fix =''
                             
-                            b = bytes('quartus_cpf -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            b = bytes('quartus_cpf -c '+pre_fix+' '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
                         else:
-                            print(' --> Generate a new FPGA configuration file for writting with the HPS (Linux)')
+                            print(' --> Generate a new FPGA configuration file for configuration with the HPS (Linux)')
                             print('     with the output name "'+rbf_config_name_found+'"')
 
                             b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                             edsCmdShell.stdin.write(b) 
-                            
+              
                             b = bytes('quartus_cpf -m FPP -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
 
@@ -1345,16 +1565,107 @@ class SocfpgaPlatformGenerator:
                     return False
 
                  # Check that the generated rbf configuration file is now available
-                if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
-                    print('ERROR: Failed to generate the FPGA configuration file')
-                    return False
+                if self.Device_id==2: 
+                    # Configuration file should be generated in early I/O relase mode (Arria 10 SX)
+                    if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_body+'.periph.rbf') or \
+                        not os.path.isfile(sof_file_dir+'/'+rbf_config_name_body+'.core.rbf'):
+                        print('ERROR: Failed to generate the FPGA configuration file')
+                        return False
+                else:
+                    # Configuration file should be generated in normal mode
+                    if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_found):
+                        print('ERROR: Failed to generate the FPGA configuration file')
+                        return False
 
                 if not boot_linux:
                     ## For the uboot FPGA configuration file  
-                    # Copy the file to the VFAT folder
                     try:
-                        shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
-                            self.Vfat_folder_dir+'/')
+                        if self.Device_id==2: 
+                            if not os.path.isfile(self.U_boot_socfpga_dir+'/tools/mkimage'):
+                                print('ERROR: The mkimage appliation ('+self.U_boot_socfpga_dir+'/tools/mkimage)')
+                                print('       does not exist')
+                                print('       FPGA Configuration file generation is not possible')
+                                print('       --> Runing the u-boot build process once to clone u-boot to "/software"')
+                                return False
+                            try:
+                                shutil.copy2(self.U_boot_socfpga_dir+'/tools/mkimage',sof_file_dir+'/mkimage')
+                            except Exception:
+                                print('ERROR: Failed to copy the "mkimage" application ')
+                                return False
+
+                            print('--> Generate the .its HPS Early I/O Realse configuration file ')
+
+                            ITS_FILE_CONTENT = ' /dts-v1/;                                                              '+ \
+                                            '/ {                                                                      '+ \
+                                            '       description = "FIT image with FPGA bistream";                     '+ \
+                                            '       #address-cells = <1>;                                             '+ \
+                                            '                                                                         '+ \
+                                            '       images {                                                          '+ \
+                                            '          fpga-periph-1 {                                                '+ \
+                                            '               description = "FPGA peripheral bitstream";                '+ \
+                                            '              data = /incbin/("'+rbf_config_name_body+'.periph.rbf'+'"); '+ \
+                                            '                type = "fpga";                                           '+ \
+                                            '               arch = "arm";                                             '+ \
+                                            '               compression = "none";                                     '+ \
+                                            '           };                                                            '+ \
+                                            '                                                                         '+ \
+                                            '           fpga-core-1 {                                                 '+ \
+                                            '               description = "FPGA core bitstream";                      '+ \
+                                            '               data = /incbin/("'+rbf_config_name_body+'.core.rbf'+'");'+ \
+                                            '               type = "fpga";                                            '+ \
+                                            '               arch = "arm";                                             '+ \
+                                            '               compression = "none";                                     '+ \
+                                            '           };                                                            '+ \
+                                            '       };                                                                '+ \
+                                            '                                                                         '+ \
+                                            '       configurations {                                                  '+ \
+                                            '           default = "config-1";                                         '+ \
+                                            '           config-1 {                                                    '+ \
+                                            '               description = "Boot with FPGA early IO release config";   '+ \
+                                            '               fpga = "fpga-periph-1";                                   '+ \
+                                            '            };                                                           '+ \
+                                            '       };                                                                '+ \
+                                            '   };                                                                    '
+                            
+                            if os.path.isfile(sof_file_dir+'/fit_spl_fpga.its'):
+                                os.remove(sof_file_dir+'/fit_spl_fpga.its')
+
+                            if os.path.isfile(sof_file_dir+'/'+FIT_FPGA_FILE_NAME):
+                                os.remove(sof_file_dir+'/'+FIT_FPGA_FILE_NAME)
+                            
+                            with open(sof_file_dir+'/fit_spl_fpga.its', "a") as f:
+                                f.write(ITS_FILE_CONTENT)
+                            
+                         
+                            print('--> Create the FIT image with the FPGA programming files (used by SPL)')
+
+                            #
+                            # mkimage -E -f board/altera/arria10-socdk/fit_spl_fpga.its fit_spl_fpga.itb
+                            #  -E => place data outside of the FIT structure
+                            #  -f => input filename for FIT source
+                            #
+                            os.system('cd '+sof_file_dir+' && mkimage -E -f fit_spl_fpga.its '+FIT_FPGA_FILE_NAME+' \n')
+
+                            os.remove(sof_file_dir+'/mkimage')
+                            os.remove(sof_file_dir+'/fit_spl_fpga.its')
+                            
+                            # Check that the output file is generated
+                            if not os.path.isfile(sof_file_dir+'/'+FIT_FPGA_FILE_NAME):
+                                print('ERROR: The .itb FPGA configuration file was not generated!')
+                                return False
+                            
+                            # Copy the file to the VFAT partition
+                            if os.path.isfile(self.Vfat_folder_dir+'/'+FIT_FPGA_FILE_NAME):
+                                os.remove(self.Vfat_folder_dir+'/'+FIT_FPGA_FILE_NAME)
+
+                            shutil.move(sof_file_dir+'/'+FIT_FPGA_FILE_NAME,  \
+                                self.Vfat_folder_dir+'/')
+
+                        else:
+                            # Copy the FPGA configuration file to the VFAT folder
+                            
+                            shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
+                                self.Vfat_folder_dir+'/')
                     except Exception as ex:
                         print('ERROR: Failed to move the rbf configuration '+ \
                             'file to the vfat folder MSG:'+str(ex))
@@ -1362,7 +1673,7 @@ class SocfpgaPlatformGenerator:
                     print('    A new FPGA for configuration during boot was generated ')
                 else:
                     ## For the Linux (HPS) FPGA configuration file  
-                    # Copy the file to the rootfs /hoome folder folder
+                    # Copy the file to the rootfs /home folder folder
                     try:
                         shutil.move(sof_file_dir+'/'+rbf_config_name_found,  \
                             linux_copydir+'/')
@@ -1550,7 +1861,7 @@ if __name__ == '__main__':
     # Generate the depending FPGA configuration file 
     #    specified inside the u-boot script
     if socfpgaGenerator.unlicensed_ip_found==False:
-        if not socfpgaGenerator.GenerateBootFPGAconf():
+        if not socfpgaGenerator.GenerateFPGAconf():
             sys.exit()
 
     print('\n#############################################################################')
@@ -1613,7 +1924,7 @@ if __name__ == '__main__':
     print('#                                                                              #')
     print('#                            ROBIN SEBASTIAN                                   #')
     print('#                     (https://github.com/robseb/)                             #')
-    print('#                            git@robseb.de                                     #')
+    print('#                             git@robseb.de                                    #')
     print('#                                                                              #')
     print('################################################################################')
 # EOF
