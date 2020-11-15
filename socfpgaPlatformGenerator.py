@@ -30,11 +30,14 @@
 # (2020-09-08) Vers. 1.02
 #  Fixing a issue with non licence IP inside Quartus Prime projects   
 #
-# (2020-09-09) Vers. 1.03
+# (2020-09-09) Vers. 1.031
 #  Arria 10 SX support   
 #
+# (2020-11-15) Vers. 1.032
+#  Arria 10 SX support Bug Fix
+#  with FPGA Config. File generation
 
-version = "1.03"
+version = "1.031"
 
 #
 #
@@ -1402,7 +1405,7 @@ class SocfpgaPlatformGenerator:
         if self.Device_id==2 and boot_linux:
             print('ERROR: FPGA configuration file that can be written by Linux (HPS)')
             print('       is for the Arria 10 SX right now not supported!')
-            return False
+            return True
 
         # Check if a FPGA configuration binary generation is necessary
         # -> Only in case the u-boot script was configured to write the FPGA configuration  
@@ -1463,11 +1466,14 @@ class SocfpgaPlatformGenerator:
                 print('    No FPGA configuration file was found')
                 print('    -> Check if the u-boot script should write the FPGA configuration')
 
+                if self.Device_id==2: fpga_conf_suffix = '.itb'
+                else:                 fpga_conf_suffix = '.rbf'
+
                 with open(self.Vfat_folder_dir+'/boot.script', 'rb', 0) as file:
                     for line in file:
                         line = str(line)
-                        if not line.find('.rbf')==-1 and not line.startswith('#'):
-                            rbf_end= line.find('.rbf')+4
+                        if not line.find(fpga_conf_suffix)==-1 and not line.startswith('#'):
+                            rbf_end= line.find(fpga_conf_suffix)+4
                             rbf_start=0
                             for i in range(rbf_end,0,-1):
                                 if line[i] ==' ':
@@ -1482,18 +1488,12 @@ class SocfpgaPlatformGenerator:
 
                 # Convert HPS early I/O Config file
                 rbf_config_name_body =''
-                if rbf_config_name_found.find('.periph')!=-1:
-                    st = rbf_config_name_found.find('.periph')
-                    rbf_config_name_found = rbf_config_name_found[:st]+rbf_config_name_found[st+7:]
-                    rbf_config_name_body = rbf_config_name_found[:st]
-                elif rbf_config_name_found.find('.core')!=-1:
-                    st = rbf_config_name_found.find('.core')
-                    rbf_config_name_found = rbf_config_name_found[:st]+rbf_config_name_found[st+5:]
-                    rbf_config_name_body = rbf_config_name_found[:st]
-                else:
-                    st = rbf_config_name_found.find('.rbf')
-                    rbf_config_name_body[:st]
                 
+                st = rbf_config_name_found.find(fpga_conf_suffix)
+                rbf_config_name_body= rbf_config_name_found[:st]
+                rbf_config_name_found=rbf_config_name_body+'.rbf'
+                
+
             if self.unlicensed_ip_found==True and not copy_file: 
                 print('\n#############################################################################')
                 print('#        Your Quartus Prime project contains unlicend demo IPs               #')
@@ -1516,6 +1516,7 @@ class SocfpgaPlatformGenerator:
 
             # 3.a Generate the FPGA configuration file
             if gen_fpga_conf and not copy_file:
+                
                 if self.Sof_folder =='':
                     sof_file_dir = self.Quartus_proj_top_dir
                 else:
@@ -1527,11 +1528,11 @@ class SocfpgaPlatformGenerator:
                         os.remove(sof_file_dir+'/'+rbf_config_name_found)
                     except Exception:
                         print('ERROR: Failed to remove the old project folder FPGA config file')
-
+            
                 try:
                     with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
                         time.sleep(DELAY_MS)
-                        if not boot_linux:
+                        if not boot_linux: 
                             print(' --> Generate a new FPGA configuration file for configuration during boot')
                             print('     with the output name "'+rbf_config_name_found+'"')
 
@@ -1553,7 +1554,7 @@ class SocfpgaPlatformGenerator:
 
                             b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                             edsCmdShell.stdin.write(b) 
-              
+            
                             b = bytes('quartus_cpf -m FPP -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
 
@@ -1565,6 +1566,7 @@ class SocfpgaPlatformGenerator:
                     return False
 
                  # Check that the generated rbf configuration file is now available
+                
                 if self.Device_id==2: 
                     # Configuration file should be generated in early I/O relase mode (Arria 10 SX)
                     if not os.path.isfile(sof_file_dir+'/'+rbf_config_name_body+'.periph.rbf') or \

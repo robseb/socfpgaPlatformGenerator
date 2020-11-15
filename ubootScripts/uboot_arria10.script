@@ -44,15 +44,10 @@
  # save environment to sdcard (not needed, but useful to avoid CRC errors on a new sdcard)
  saveenv
  
- echo --- Programming FPGA ---
- echo --- load FPGA config to memory
+# Notice the FPGA configuration file name 
+echon --- FPGA configuration File Name
+echo fit_spl_fpga.itb
  
-#from FAT partition into memory
-fatload mmc 0:1 ${ramdisk_addr_r} fit_spl_fpga.itb
- 
-echo --- write the FPGA configuration ---
-fpga load 0 ${ramdisk_addr_r} ${filesize}
-
 echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
 bridge enable;
 
