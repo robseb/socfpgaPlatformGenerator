@@ -20,7 +20,7 @@
 #
 # Python Script to automatically generate the u-boot loader 
 # for Intel SoC-FPGAs 
- 
+
 # (2020-07-23) Vers.1.0 
 #   first Version 
 #
@@ -30,14 +30,14 @@
 # (2020-09-08) Vers. 1.02
 #  Fixing a issue with non licence IP inside Quartus Prime projects   
 #
-# (2020-09-09) Vers. 1.031
+# (2020-09-09) Vers. 1.03
 #  Arria 10 SX support   
 #
-# (2020-11-15) Vers. 1.032
-#  Arria 10 SX support Bug Fix
-#  with FPGA Config. File generation
+# (2020-12-06) Vers. 1.04
+#  Arria 10 SX bug fix   
+#
 
-version = "1.031"
+version = "1.04"
 
 #
 #
@@ -60,12 +60,11 @@ SPL_OUTPUT_FILE_NAME    ='spl_w_dtb-mkpimage.bin'
 SPL_INPUT_FILE_NAME     ='u-boot-spl-dtb.bin'
 FIT_FPGA_FILE_NAME      ='fit_spl_fpga.itb'
 
-
 YOCTO_BASE_FOLDER         = 'poky'
 
 IMAGE_FOLDER_NAME         = 'Image_partitions'
 
-GITNAME                   = "socfpgaPlatformGenerator"
+GITNAME                   = "socfpgaplatformgenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
 GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master
@@ -93,9 +92,9 @@ INTELSOCFPGA_BLUEPRINT_XML_FILE ='<?xml version="1.0" encoding = "UTF-8" ?>\n'+\
     '<!-- L "unzip"     => Unzip a compressed file if available (Top folder only) -->\n'+\
     '<!-- 	L 	    => Yes: Y or No: N -->\n'+\
     '<LinuxDistroBlueprint>\n'+\
-    '<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" />\n'+\
-    '<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" />\n'+\
-    '<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" />\n'+\
+    '<partition id="1" type="vfat" size="*" offset="500M" devicetree="Y" unzip="N" ubootscript="arm" />\n'+\
+    '<partition id="2" type="ext3" size="*" offset="1M" devicetree="N" unzip="Y" ubootscript="" />\n'+\
+    '<partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" ubootscript="" />\n'+\
     '</LinuxDistroBlueprint>\n'
 
 #
@@ -859,27 +858,28 @@ class SocfpgaPlatformGenerator:
     ################################################  Build the bootloader #####################################################
             print('--> Start the Intel Embedded Command Shell')
             try:
-                # Create the BSP package for the device with the Intel EDS shell
-                with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-                    time.sleep(DELAY_MS)
-                    
-                    print('--> Generate the Board Support Package (BSP) for the Quartus Prime configuration')
-                    b = bytes(' cd '+self.Quartus_proj_top_dir+"\n", 'utf-8')
-                    edsCmdShell.stdin.write(b) 
+                # Only for the Cyclone V
+                if self.Device_id==0:
+                    # Create the BSP package for the device with the Intel EDS shell
+                    with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                        time.sleep(DELAY_MS)
+                        
+                        print('--> Generate the Board Support Package (BSP) for the Quartus Prime configuration')
+                        b = bytes(' cd '+self.Quartus_proj_top_dir+"\n", 'utf-8')
+                        edsCmdShell.stdin.write(b) 
 
-                    b = bytes('bsp-create-settings --type spl --bsp-dir software/bootloader '+ \
-                            '--preloader-settings-dir "'+self.Handoff_folder_name+'" ' +\
-                            '--settings software/bootloader/settings.bsp\n','utf-8')
+                        b = bytes('bsp-create-settings --type spl --bsp-dir software/bootloader '+ \
+                                '--preloader-settings-dir "'+self.Handoff_folder_name+'" ' +\
+                                '--settings software/bootloader/settings.bsp\n','utf-8')
 
-                    edsCmdShell.stdin.write(b)
-                    edsCmdShell.communicate()
+                        edsCmdShell.stdin.write(b)
+                        edsCmdShell.communicate()
                     
-                    
-                # Check that BSP generation is okay
-                if not os.path.isdir(self.Quartus_proj_top_dir+'/software/bootloader/generated') or \
-                    not os.path.isfile(self.Quartus_proj_top_dir+'/software/bootloader/settings.bsp'):
-                    print('ERROR: The BSP generation failed!')
-                    return False
+                    # Check that BSP generation is okay
+                    if not os.path.isdir(self.Quartus_proj_top_dir+'/software/bootloader/generated') or \
+                        not os.path.isfile(self.Quartus_proj_top_dir+'/software/bootloader/settings.bsp'):
+                        print('ERROR: The BSP generation failed!')
+                        return False
                 
     ####################################################### Clone "u-boot-socfpga" ################################################
                 if(os.path.isdir(self.U_boot_socfpga_dir)):
