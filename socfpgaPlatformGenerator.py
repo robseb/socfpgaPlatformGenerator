@@ -36,8 +36,10 @@
 # (2020-12-06) Vers. 1.04
 #  Arria 10 SX bug fix   
 #
+# (2020-12-07) Vers. 1.05
+#  Adding SoC-EDS DeviceTree Generator Execution  
 
-version = "1.04"
+version = "1.05"
 
 #
 #
@@ -112,10 +114,7 @@ u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/a
 # Generate the bootable SPL image file
 #                        
 #        Cyclone V    |  Arria V     | Arria 10 
-
 generate_spl_image_file = [False,False,True]
-
-
 
 #
 # "u-boot-socfpga deconfig" file name for make (u-boot-socfpga/configs/)
@@ -223,6 +222,7 @@ class SocfpgaPlatformGenerator:
     
     Qpf_file_name               : str # Name of the Quartus Project ".qpf"-file
     Sof_file_name               : str # Name of the Quartus Project ".sof"-file
+    sopcinfo_file_name          : str # Name of the Quartus Project ".sopcinfo"-file
     Qsys_file_name              : str # Name of the Quartus Project ".qsys"-file
     Handoff_folder_name         : str # Name of the Quartus Project Hand-off folder
     UbootSPL_default_preBuild_dir  : str # Directory of the pre-build u-boot for the device 
@@ -352,9 +352,14 @@ class SocfpgaPlatformGenerator:
         # Find the Quartus project (.qpf) file 
         self.Qpf_file_name = ''
         for file in os.listdir(self.Quartus_proj_top_dir):
-                if ".qpf" in file:
-                    self.Qpf_file_name =file
-                    break
+            if ".qpf" in file:
+                self.Qpf_file_name =file
+                break
+
+        for file in os.listdir(self.Quartus_proj_top_dir):
+            if ".sopcinfo" in file:
+                self.sopcinfo_file_name =file
+                break
 
         # Find the Quartus  (.sof) (SRAM Object) file 
         self.Sof_file_name = ''
@@ -374,7 +379,7 @@ class SocfpgaPlatformGenerator:
                 if ".sof" in file:
                     self.Sof_file_name =file
                     break
-
+            
         # Find the Platform Designer (.qsys) file  
         self.Qsys_file_name = ''
         for file in os.listdir(self.Quartus_proj_top_dir):
@@ -384,9 +389,10 @@ class SocfpgaPlatformGenerator:
                     break
 
         print('    Founded files: ')
-        print('      QPF: "'+self.Qpf_file_name+'"')
-        print('      SOF: "'+self.Sof_file_name+'"')
-        print('     QSYS: "'+self.Qsys_file_name+'"')
+        print('      QPF:     "'+self.Qpf_file_name+'"')
+        print('      SOF:     "'+self.Sof_file_name+'"')
+        print('     QSYS:     "'+self.Qsys_file_name+'"')
+        print('     SOPCINFO: "'+self.sopcinfo_file_name+'"')
 
         # Does the SOF file contains an IP with a test licence, such as a NIOS II Core?
         self.unlicensed_ip_found=False
@@ -1800,6 +1806,59 @@ class SocfpgaPlatformGenerator:
             self.BootImageCreator.compressOutput(True,self.OutputZipFileName)
         return True
 
+    #
+    # @brief Executue the Intel SoC-EDS DeviceTree Generator to generate a reference DeviceTree
+    #        for the FPGA 
+    # @param    outfile_dir        Directory of the output file 
+    # @param    outfile_name       Output DeviceTree file name
+    # @param    gui_mode           Enables the GUI mode
+    # @return                      success
+    #
+    def RunDeviceTreeGenerator(self,outfile_dir='',outfile_name='socfpga_reference.dts',gui_mode=False):
+        print('--> Execute the SoC-EDS DeviceTree Generator')
+        print('    NOTE: Use only the DeviceTree Generator output as reference!')
+
+        if not os.path.isdir(outfile_dir):
+            print('ERROR: The selected DeviceTree Generator output folder does not exsit!')
+            return False
+
+        # Remove old DeviceTree Output file
+        if os.path.isfile(outfile_dir+'/'+outfile_name):
+            try:
+                os.remove(outfile_dir+'/'+outfile_name)
+            except Exception as ex: 
+                print('ERROR: Failed to remove the old DeviceTree file') 
+
+        gui_mode_str = ''
+        if gui_mode: gui_mode_str=' --gui'
+
+        # Run the DeviceTree Generator
+        deviceTreeCmd = 'sopc2dts  --verbose --input '+self.Quartus_proj_top_dir+'/'+self.sopcinfo_file_name+\
+                        ' --output '+\
+                        outfile_name+' --type dts' +\
+                        ' --bridge-removal all --clocks --conduits '+\
+                        '--streaming --reset --sort name'+gui_mode_str
+        
+        try:
+            with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                time.sleep(DELAY_MS)
+
+                b = bytes(' cd '+outfile_dir+' \n', 'utf-8')
+                edsCmdShell.stdin.write(b) 
+
+                b =bytes(deviceTreeCmd+' \n','utf-8')
+                edsCmdShell.stdin.write(b) 
+
+                edsCmdShell.communicate()
+                time.sleep(DELAY_MS)
+        
+        except Exception as ex:
+            print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
+            return False
+
+        # Check that a output file was generated
+        return os.path.isfile(outfile_dir+'/'+outfile_name)
+    
 
 ############################################                                ############################################
 ############################################             MAIN               ############################################
