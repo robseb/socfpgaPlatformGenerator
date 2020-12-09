@@ -38,8 +38,12 @@
 #
 # (2020-12-07) Vers. 1.05
 #  Adding SoC-EDS DeviceTree Generator Execution  
+#
+# (2020-12-09) Vers. 1.06
+#  Arria 10 SX bug fix   
+#
 
-version = "1.05"
+version = "1.06"
 
 #
 #
@@ -105,10 +109,16 @@ INTELSOCFPGA_BLUEPRINT_XML_FILE ='<?xml version="1.0" encoding = "UTF-8" ?>\n'+\
 #        Cyclone V    |  Arria V     | Arria 10 
 
 
-run_filter_script =[True, True, False]
+run_filter_script =[True, True, True]
+qts_filter_script_name = ['qts-filter.sh','','qts-filter-a10.sh']
 
 u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/arria5-socdk/qts/', \
                     ' ']
+
+#
+# Name of the DeviceTree used by the primary bootloader (only Arria 10 SX)
+#
+preloader_deviceTree_name = ['','','socfpga_arria10_socdk_sdmmc.dtb']
 
 #
 # Generate the bootable SPL image file
@@ -916,24 +926,28 @@ class SocfpgaPlatformGenerator:
                 # Only if it is required for the device
                 if run_filter_script[self.Device_id]:
                     eds_filter_script_dir = '/'+'arch'+'/'+ \
-                                            'arm'+'/'+'mach-socfpga'+'/'+'qts-filter.sh'
+                                            'arm'+'/'+'mach-socfpga'+'/'+qts_filter_script_name[self.Device_id]
                     # Find the filter script
                     if not os.path.isfile(self.U_boot_socfpga_dir+eds_filter_script_dir):
                         print('ERROR: The EDS Filter script is not available on the default directory')
-                        print('       "/arch/arm/mach-socfpga/qts-filter.sh"')
+                        print('       "/arch/arm/mach-socfpga/'+qts_filter_script_name[self.Device_id]+'"')
                         return False
-                    # Find the BPS for the selected device inside u-boot
-                    u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[self.Device_id]
-                    if not os.path.isdir(self.U_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
-                        print('Error: The u-boot BSP QTS direcorory is for the device not available!')
-                        print('       '+u_boot_bsp_qts_dir)
-                        return False
+ 
         ####################################################### Run EDS filter script ################################################
                     print('--> Run the Intel EDS Filter script')
-                    with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
-                        time.sleep(DELAY_MS)
-                        b = bytes('cd '+self.Quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
-                        edsCmdShell.stdin.write(b) 
+                    output_file_dir = self.Quartus_bootloder_dir+\
+                            '/u-boot-socfpga/arch/arm/dts/socfpga_arria10_socdk_sdmmc_handoff.h'
+                    preloader_deviceTree_dir= self.Quartus_bootloder_dir+\
+                            '/u-boot-socfpga/arch/arm/dts/'+preloader_deviceTree_name[self.Device_id]
+                    
+                    if self.Device_id<2:
+                        ####### For the Intel Cyclone V or Arria V SoC FPGA
+                        # Find the BPS for the selected device inside u-boot
+                        u_boot_bsp_qts_dir=u_boot_bsp_qts_dir_list[self.Device_id]
+                        if not os.path.isdir(self.U_boot_socfpga_dir+'/'+u_boot_bsp_qts_dir):
+                            print('Error: The u-boot BSP QTS direcorory is for the device not available!')
+                            print('       '+u_boot_bsp_qts_dir)
+                            return False
                         #
                         # 
                         # soc_type      - Type of SoC, either 'cyclone5' or 'arria5'.
@@ -943,9 +957,49 @@ class SocfpgaPlatformGenerator:
                         #                 the settings.bsp file.
                         # output_dir    - Directory to store the U-Boot compatible
                         #                 headers.
+                        qts_fitter_cmd = './'+eds_filter_script_dir+' '+\
+                                        self.Socfpga_devices_list[self.Device_id]+' ../../../ ../ '+ \
+                                        '.'+u_boot_bsp_qts_dir+'  \n'
+                    else: 
+                        ####### For the Intel Arria 10 SoC FPGA
+                        if not os.path.isfile(self.Quartus_proj_top_dir+'/'+\
+                            self.Handoff_folder_name+'/hps.xml'):
+                            print('ERROR: The file "'+self.Handoff_folder_name+'/hps.xml'+'"'+\
+                                ' does not exist!')
+                            sys.exit()
 
-                        b = bytes('./'+eds_filter_script_dir+' '+self.Socfpga_devices_list[self.Device_id]+' ../../../ ../ ' \
-                                '.'+u_boot_bsp_qts_dir+'  \n','utf-8')
+                        # Remove the output files 
+                        if os.path.isfile(output_file_dir):
+                            try:
+                                os.remove(output_file_dir)
+                            except Exception:
+                                print('ERROR: Failed to remove the old output file!')
+                                sys.exit()
+                        '''
+                        if os.path.isfile(preloader_deviceTree_dir):
+                            try:
+                                os.remove(preloader_deviceTree_dir)
+                            except Exception:
+                                print('ERROR: Failed to remove the old primary deviceTree file!')
+                                sys.exit()
+                        '''
+
+
+                        # 
+                        # cd $TOP_FOLDER/a10_soc_devkit_ghrd/software/bootloader/u-boot-socfpga
+                        #    ./arch/arm/mach-socfpga/qts-filter-a10.sh \
+                        #    ../../../hps_isw_handoff/hps.xml \
+                        #    arch/arm/dts/socfpga_arria10_socdk_sdmmc_handoff.h
+                        qts_fitter_cmd = './'+eds_filter_script_dir+' '+\
+                                        self.Quartus_proj_top_dir+'/'+self.Handoff_folder_name+'/hps.xml '+\
+                                        output_file_dir+' \n'
+
+                    with subprocess.Popen(self.EDS_Folder+'/'+EDS_EMBSHELL_DIR, stdin=subprocess.PIPE) as edsCmdShell:
+                        time.sleep(DELAY_MS)
+                        b = bytes('cd '+self.Quartus_proj_top_dir+'/software/bootloader/u-boot-socfpga \n','utf-8')
+                        edsCmdShell.stdin.write(b) 
+             
+                        b = bytes(qts_fitter_cmd,'utf-8')
                         edsCmdShell.stdin.write(b) 
                         #time.sleep(10*DELAY_MS)
 
@@ -956,11 +1010,28 @@ class SocfpgaPlatformGenerator:
                 print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                 return False
 
+            if self.Device_id==2 and not os.path.isfile(output_file_dir):
+                print('ERROR: BSP Generation failed!')
+                print('       The "socfpga_arria10_socdk_sdmmc_handoff.h" output file did not exsit!')
+                return False
+
+            #if self.Device_id==2 and not os.path.isfile(preloader_deviceTree_dir):
+            #    print('ERROR: BSP Generation failed!')
+            #    print('       The "'+preloader_deviceTree_name[self.Device_id]+\
+            #        '" output file did not exsit!')
+            #    return False
+
             # Check that the output files are available 
+            '''
             if (not os.path.isdir(self.Quartus_bootloder_dir+'/'+"generated"))  or \
             (not os.path.isdir(self.Quartus_bootloder_dir+'/'+"generated"+'/'+"sdram")):
                 print('ERROR: BSP Generation failed!')
                 return False
+            '''
+
+            # For the Intel Arria 10 SX: decompile the auto generated DeviceTree
+            #if self.Device_id==2: 
+
 
 
             start_menuconfig = False 
@@ -1374,7 +1445,8 @@ class SocfpgaPlatformGenerator:
                     f.write('   KERNEL ../zImage\n')
                     f.write('   FDT ../socfpga_arria10_socdk_sdmmc.dtb\n')
                     f.write('   APPEND root=/dev/mmcblk0p2 rw rootwait earlyprintk console=ttyS0,115200n8\n')
-        '''  
+        '''
+          
    
     ############################################ Create the u-boot script "boot.script" ########################################## 
         if not os.path.isfile(self.Vfat_folder_dir+'/boot.scr'):
