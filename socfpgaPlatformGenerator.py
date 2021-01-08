@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.7
 #
 #            ########   ######     ##    ##  #######   ######  ########  #######                  
 #            ##     ## ##    ##     ##  ##  ##     ## ##    ##    ##    ##     ##           
@@ -42,8 +42,11 @@
 # (2020-12-09) Vers. 1.06
 #  Arria 10 SX bug fix   
 #
+# (2021-01-08) Vers. 1.07
+#  Bug Fix with Github folder detection 
+#  Altera "u-boot-socfpga" git pull error detection 
 
-version = "1.06"
+version = "1.07"
 
 #
 #
@@ -73,7 +76,7 @@ IMAGE_FOLDER_NAME         = 'Image_partitions'
 GITNAME                   = "socfpgaplatformgenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master
+GIT_U_BOOT_SOCFPGA_BRANCH =  "master" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
@@ -341,7 +344,7 @@ class SocfpgaPlatformGenerator:
                     break
                 slashpos= slashpos_pos+len('/')
 
-            if(not excpath[slashpos:] == GITNAME):
+            if(not excpath[slashpos:].upper() == GITNAME.upper()):
                     raise Exception()
 
             self.Quartus_proj_top_dir = excpath[:slashpos-1]
@@ -901,8 +904,20 @@ class SocfpgaPlatformGenerator:
                 if(os.path.isdir(self.U_boot_socfpga_dir)):
                     print('--> "u-boot-socfpga" is already available')
                     print('       Pull it from Github')
-                    g = git.cmd.Git(self.U_boot_socfpga_dir)
-                    g.pull()
+                    try:
+
+                        g = git.cmd.Git(self.U_boot_socfpga_dir)
+                        g.pull()
+                    except Exception as ex:
+                        print('ERROR: Failed to pull "u-boot-socfpag" from "'+GIT_U_BOOT_SOCFPGA_URL)
+                        print('Branch= '+GIT_U_BOOT_SOCFPGA_BRANCH)
+                        print('Try following to fix this issue:')
+                        print(' x 1: Remove the folder "software/bootloader" inside the Quartus Project folder')
+                        print('      To force to re-clone the repo')
+                        print(' x 2: Check that the here used Branch of this repo')
+                        print('      You can change the Branch with the value "GIT_U_BOOT_SOCFPGA_URL" inside the Python script!')
+                        sys.exit()
+
                     
                 else:
                     print('--> Cloning "u-boot-socfpga" Version ('+GIT_U_BOOT_SOCFPGA_URL+')\n')
