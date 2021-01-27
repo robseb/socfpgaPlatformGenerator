@@ -76,7 +76,7 @@ IMAGE_FOLDER_NAME         = 'Image_partitions'
 GITNAME                   = "socfpgaplatformgenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH =  "master" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
+GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
