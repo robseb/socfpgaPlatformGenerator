@@ -11,14 +11,14 @@
 #            | _ )  _  _  (_) | |  __| |   / __|  _  _   ___ | |_   ___   _ __  
 #            | _ \ | || | | | | | / _` |   \__ \ | || | (_-< |  _| / -_) | '  \ 
 #            |___/  \_,_| |_| |_| \__,_|   |___/  \_, | /__/  \__| \___| |_|_|_|
-#                                                  |__/                              
+#                                                 |__/                              
 #
 #
 # Robin Sebastian (https://github.com/robseb)
 # Contact: git@robseb.de
 # Repository: https://github.com/robseb/meta-intelfpga
 #
-# Python Script to automatically generate the u-boot loader 
+# Python Script to automatically generate the u-boot bootloader 
 # for Intel SoC-FPGAs 
 
 # (2020-07-23) Vers.1.0 
@@ -45,8 +45,18 @@
 # (2021-01-08) Vers. 1.07
 #  Bug Fix with Github folder detection 
 #  Altera "u-boot-socfpga" git pull error detection 
+#
+# (2021-02-10) Vers. 1.10
+#  * Bug Fix with FPGA configuration generation with unlicensed IP projects
+#  * New selection interfaces
+#  * Support for pre-build bootloader for Arria 10 SX
+#  * Bug fix with using a Yocto Project Linux distribution
+#  * Interface to allow to use a own Linux Devicetree with a Yocto Project Distribution
+#  * Bug fix with the partition size calculation and unzip of archive files 
+#  * Spell fix with the name "linaro" 
+#
 
-version = "1.07"
+version = "1.10"
 
 #
 #
@@ -65,8 +75,8 @@ BOOTLOADER_FILE_NAME      = 'u-boot-with-spl.sfp'
 
 # Arria 10 only
 U_BOOT_IMAGE_FILE_NAME  ='u-boot.img'
-SPL_OUTPUT_FILE_NAME    ='spl_w_dtb-mkpimage.bin'
-SPL_INPUT_FILE_NAME     ='u-boot-spl-dtb.bin'
+SFP_OUTPUT_FILE_NAME    ='spl_w_dtb-mkpimage.bin'
+SFP_INPUT_FILE_NAME     ='u-boot-spl-dtb.bin'
 FIT_FPGA_FILE_NAME      ='fit_spl_fpga.itb'
 
 YOCTO_BASE_FOLDER         = 'poky'
@@ -76,9 +86,13 @@ IMAGE_FOLDER_NAME         = 'Image_partitions'
 GITNAME                   = "socfpgaplatformgenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH =  "master" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
+GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
+
+# The Linux devicetree names required for bootloader generation
+DEVICETREE_OUTPUT_NAME = ['socfpga_cyclone5_socdk.dts','', \
+                          'socfpga_arria10_socdk_sdmmc.dts']
 
 #
 # @brief default XML Blueprint file
@@ -118,16 +132,19 @@ qts_filter_script_name = ['qts-filter.sh','','qts-filter-a10.sh']
 u_boot_bsp_qts_dir_list = ['/board/altera/cyclone5-socdk/qts/', '/board/altera/arria5-socdk/qts/', \
                     ' ']
 
+# SFP BootROM File for the RAW partition 
+sfp_inputflile_suffix = ['.sfp','','.bin']
 #
 # Name of the DeviceTree used by the primary bootloader (only Arria 10 SX)
 #
 preloader_deviceTree_name = ['','','socfpga_arria10_socdk_sdmmc.dtb']
 
 #
-# Generate the bootable SPL image file
+# Generate the bootable SFP image file
+# For the Intel Arria 10 SX is a ".img" file required 
 #                        
 #        Cyclone V    |  Arria V     | Arria 10 
-generate_spl_image_file = [False,False,True]
+generate_sfp_image_file = [True,True,False]
 
 #
 # "u-boot-socfpga deconfig" file name for make (u-boot-socfpga/configs/)
@@ -136,9 +153,9 @@ u_boot_defconfig_list = ['socfpga_cyclone5_defconfig', 'socfpga_arria5_defconfig
                     'socfpga_arria10_defconfig']
 
 #                                Cyclone V    |  Arria V     | Arria 10 
-limaro_version_list = ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf','gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf',\
+linaro_version_list = ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf','gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf',\
     'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf']
-limaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
+linaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
     'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz', \
         'https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/'\
     'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz', \
@@ -149,11 +166,9 @@ limaro_url_list = ['https://releases.linaro.org/components/toolchain/binaries/7.
 gcc_toolchain_path_list= ['gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH', \
                 'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH', \
                     'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/:$PATH']
-
 #
 # 
 #
-
 
 #
 #
@@ -177,7 +192,6 @@ if sys.platform =='linux':
         print('$ pip3 install GitPython wget')
         sys.exit()
     
-
 
 if sys.platform =='linux':
     # @brief to show process bar during github clone
@@ -223,6 +237,160 @@ except ModuleNotFoundError as ex:
     
     from LinuxBootImageFileGenerator.LinuxBootImageGenerator import Partition,BootImageCreator
 
+
+#
+# @brief Print a selection table that allows user to choose a item
+# @param headline:        Main headline that will be displayed in the top of the box 
+# @param headline_table:  Headline of the table (column names)
+# @param raw1:            List of raw items of the column 1
+# @param raw1:            List of raw items of the column 2 (optional)
+# @param selectionMode:   Allow the user to select a item
+# @param line_offset:     Offset of a raw line
+# @return                 Selected item by the user (0 = Error)
+#
+def printSelectionTable(headline=[], headline_table=[], raw1=[], raw2=[],
+        selectionMode=False,line_offset=10):
+
+    singleRaw = True
+    if len(raw1)==0 or len(headline_table)==0:
+        return 0
+    if raw2=='': 
+        singleRaw = True
+    elif not len(raw2)==0:
+        singleRaw = False
+    if not singleRaw and len(headline_table)<1:
+        return 0
+
+    # Find longest sting in raws
+    max_raw_len =0
+    for raw1_it in raw1:
+        loc = len(raw1_it)
+        if loc > max_raw_len:
+            max_raw_len=loc
+
+    for head_it in headline_table:
+        loc = len(head_it)
+        if loc > max_raw_len:
+            max_raw_len=loc
+    
+    if not singleRaw:
+        for raw2_it in raw2:
+            loc = len(raw2_it)
+            if loc > max_raw_len:
+                max_raw_len=loc
+
+    max_raw_len+=line_offset
+
+    ### Print the top of the box
+    total_raw_len = max_raw_len
+    if not singleRaw:
+        total_raw_len *=2
+    total_raw_len+=10
+    filling='#'
+    print(' ')
+    for i in range(total_raw_len):
+        sys.stdout.write('#')
+    for i in range(total_raw_len-2):
+        filling+=' '
+    filling+='#'
+    line_sep = filling.replace(' ','-')
+    print('')
+
+    ### Print the headline 
+    if len(headline)>0:
+        for lin in headline:
+            lin2 =''
+            lin1 =''
+            if(len(lin)>total_raw_len-5):
+                lin1=lin[:total_raw_len-5]
+                lin2 = lin[total_raw_len-5:]
+            else:
+                lin1 = lin
+            print('# '+lin1.center(total_raw_len-3)+'#')
+            if lin2!='':
+                print('# '+lin2.center(total_raw_len-3)+'#')
+    print(filling)
+    print(line_sep)
+    ### Print the table headline 
+    sys.stdout.write('#  '+' No. '+' '.center(3)+'|')
+
+    sys.stdout.write(headline_table[0].center(max_raw_len-(3 if singleRaw else 2)))
+    if not singleRaw:
+        sys.stdout.write('|'+headline_table[1].center(max_raw_len-2)+'#')
+    else:
+        sys.stdout.write('#')
+    print('')
+
+    # Print a line seperator
+    line_sep = filling.replace(' ','-')
+    print(line_sep)
+
+    ### Print the content to the raws 
+    # Find the number of iteams
+    no_it = len(raw1)
+    if not singleRaw and len(raw2) > no_it:
+        no_it = len(raw2)
+    
+    # for loop for every raw
+    for i in range(no_it):
+        sys.stdout.write('# '+str(i+1).center(9)+'|')
+        if len(raw1)>=i:
+            item_len = len(raw1[i])+(3 if not singleRaw else 4)
+            sys.stdout.write(' '+raw1[i]+''.center(max_raw_len-item_len))
+            sys.stdout.write('|' if not singleRaw else '#')
+        else:
+            sys.stdout.write(''.center(max_raw_len-2)+'|')
+        if not singleRaw:
+            if   len(raw2)>=i:
+                item_len = len(raw2[i])+3
+                sys.stdout.write(' '+raw2[i]+' '.center(max_raw_len-item_len)+'#')
+            else:
+                sys.stdout.write(''.center(max_raw_len-2)+'#')
+        print('')
+    print(line_sep)
+    
+    # Print the selection interface
+    inp_val =0
+    if selectionMode:
+        st = '#   Select a item by typing a number (1-'+str(no_it)+') [q=Abort]'
+        sys.stdout.write(st+' '.center(total_raw_len-len(st)-1)+'#')
+        print('')
+        while True:
+            inp = input('#  Please input a number: $')
+
+            try:
+                inp_val = int(inp)
+            except Exception:
+                pass
+
+            if inp=='Q' or inp=='q':
+                print(' Aborting...')
+                sys.exit()
+            elif inp_val>0 and inp_val <(no_it+1):
+                st='# Your Selection: '+str(inp_val)
+                if len(raw1)>=inp_val-1:
+                    st='# Your Selection: '+str(inp_val)+'" : "'+raw1[inp_val-1]+'"'
+                elif len(raw2)>=inp_val-1:
+                    st='# Your Selection: '+str(inp_val)+'" : "'+raw2[inp_val-1]+'"'
+                sys.stdout.write(st+' '.center(total_raw_len-len(st)-1)+'#')
+                print('')
+                break
+            else:
+                st='# Wrong Input! Please try it agin!'
+                sys.stdout.write(st+' '.center(total_raw_len-len(st)-1)+'#')
+                print('')
+    ### Print the bottom of the box
+    print(filling)
+    for i in range(total_raw_len):
+        sys.stdout.write('#')
+    print('\n')
+
+    if selectionMode:
+        return inp_val
+    
+    return 1        
+
+
 # 
 #
 # @brief Class for automatisation the entry bootable Linux Distribution generation 
@@ -238,7 +406,7 @@ class SocfpgaPlatformGenerator:
     sopcinfo_file_name          : str # Name of the Quartus Project ".sopcinfo"-file
     Qsys_file_name              : str # Name of the Quartus Project ".qsys"-file
     Handoff_folder_name         : str # Name of the Quartus Project Hand-off folder
-    UbootSPL_default_preBuild_dir  : str # Directory of the pre-build u-boot for the device 
+    UbootSFP_default_preBuild_dir : str # Directory of the pre-build u-boot for the device 
     Quartus_bootloder_dir       : str # Directory of the Quartus Project "/software/bootloader"-folder
     Sof_folder                  : str # Name of the Quartus Project folder containing the ".sof"-file 
     U_boot_socfpga_dir          : str # Directory of u-boot SoC-FPGA folder 
@@ -348,6 +516,7 @@ class SocfpgaPlatformGenerator:
                     raise Exception()
 
             self.Quartus_proj_top_dir = excpath[:slashpos-1]
+            self.UbootSFP_default_preBuild_dir=''
 
         except Exception:
             print('ERROR: The script was not executed inside the cloned Github folder')
@@ -539,21 +708,21 @@ class SocfpgaPlatformGenerator:
         if self.Uboot_default_file_dir =='':
             print('NOTE: No depending default u-boot script file is available for this device!')
 
-        # Find the depending default pre-build u-boot or SPL file
-        self.UbootSPL_default_preBuild_dir =''
-        for name in os.listdir(excpath+'/ubootDefaultSFP'):
-                # Find the u-boot .spl executable for other devices 
-                if  os.path.isfile(excpath+'/ubootDefaultSFP/'+name) and \
-                (name.find(self.Socfpga_devices_list[self.Device_id])!=-1):
-                    self.UbootSPL_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
-
-        if self.UbootSPL_default_preBuild_dir =='':
-            print('NOTE: No depending default SPL u-boot pre-build file is available for this device!')
-
-         # Find the depending default pre-build u-boot or SPL file
+        # Find the depending default pre-build u-boot or SFP file
         self.UbootIMG_default_preBuild_dir =''
-         # Only for the Arria 10 SX:
-        if generate_spl_image_file[self.Device_id]: 
+        
+        # For the Cyclone V, Arria V and the Arria 10 SX
+        for name in os.listdir(excpath+'/ubootDefaultSFP'):
+            # Find the default u-boot ".spl" executable for the Cyclone V 
+            if  os.path.isfile(excpath+'/ubootDefaultSFP/'+name) and \
+            name.find(self.Socfpga_devices_list[self.Device_id])!=-1:
+                if name.endswith(sfp_inputflile_suffix[self.Device_id]):
+                    self.UbootSFP_default_preBuild_dir=excpath+'/ubootDefaultSFP/'+name
+        if self.UbootSFP_default_preBuild_dir =='':
+            print('NOTE: No depending default SFP u-boot pre-build file is available for this device!')
+
+        if not generate_sfp_image_file[self.Device_id]: 
+            # Only for the Arria 10 SX:
             for name in os.listdir(excpath+'/ubootDefaultIMG'):
                     # Find the u-boot .img executable for other devices 
                     if  os.path.isfile(excpath+'/ubootDefaultIMG/'+name) and \
@@ -745,12 +914,12 @@ class SocfpgaPlatformGenerator:
         excpath = os.getcwd()
 
         if (self.Bootloader_available and os.path.isfile(self.Raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)\
-            and  generate_spl_image_file[self.Device_id]):
+            and  generate_sfp_image_file[self.Device_id]):
             bootloader_build_required = False
 
-                   # Check that the SPL output file is avalibile
-        if (not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME)) and \
-             generate_spl_image_file[self.Device_id]:
+                   # Check that the SFP output file is avalibile
+        if (not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SFP_OUTPUT_FILE_NAME)) and \
+             generate_sfp_image_file[self.Device_id]:
             bootloader_build_required = False
 
         if generation_mode==1:
@@ -762,33 +931,24 @@ class SocfpgaPlatformGenerator:
             use_default_bootloader = True
         elif generation_mode==0:
             #The User can chose how the bootloader should be build
-            print('\n################################################################################')
-            print('#                                                                              #')
-            print('#                       Bootloader Generation Settings                         #')
-            print('#                                                                              #')
+            headline = ['Bootloader Generation Selection']
+            headline_table=['Task']
+            headline_content=[]
+            if (not self.UbootIMG_default_preBuild_dir =='' and self.Device_id==2) or  \
+            (not self.UbootSFP_default_preBuild_dir=='' and self.Device_id==0): 
+                headline_content.append('Use the pre-build default bootloader')
+            headline_content.append('Build/Rebuild the bootloader')
             if not bootloader_build_required:
-                print('#                    Do you want to rebuild the bootloader?                    #')
-            print('#                                                                              #')
-            print('--------------------------------------------------------------------------------')
-            print('#    D:              Use the pre-build default bootloader                      #')
-            print('#    Y:              Build/Rebuild the bootloader                              #')
-    
+                headline_content.append('Continue without rebuilding the bootloader')
 
-            if not bootloader_build_required:
-                print('#    anything else:  Continue without rebuilding the bootloader                #')
-            print('#    Q:              Abort                                                     #')
-            print('------------------------------------------------------------------------------')
-            __wait2__ = input('#              Please type ...                                               #\n')
-            
-            if __wait2__ =='q' or __wait2__=='Q':
-                sys.exit()
-            elif __wait2__ =='Y' or __wait2__=='y':
-                bootloader_build_required = True
-            elif __wait2__ =='D' or __wait2__=='d':
+            BootSelchoose = printSelectionTable(headline,headline_table,headline_content,[],True,20)
+            bootloader_build_required = True
+            use_default_bootloader =False
+            if BootSelchoose==1 and \
+                (not self.UbootIMG_default_preBuild_dir =='' or not self.UbootSFP_default_preBuild_dir ==''):
                 use_default_bootloader = True
                 bootloader_build_required=False
-
-
+               
             
         # Find the RAW Partition and 
         self.Raw_folder_dir =''
@@ -801,7 +961,7 @@ class SocfpgaPlatformGenerator:
             print('ERROR: The chosen partition table has no RAW/NONE-partition.')
             print('       That is necessary for the bootloader')
             return False
-        if self.Vfat_folder_dir =='' and generate_spl_image_file[self.Device_id]:
+        if self.Vfat_folder_dir =='' and generate_sfp_image_file[self.Device_id]:
             print('ERROR: The chosen partition table no VFAT/FAT32 partition.')
             print('       That is necessary for the bootloader')
             return False
@@ -811,19 +971,25 @@ class SocfpgaPlatformGenerator:
             if not os.path.isdir(excpath+'/ubootDefaultSFP'):
                 print('ERROR: The u-boot default pre-build folder "ubootDefaultSFP" is not available')
                 return False
+            if not os.path.isdir(excpath+'/ubootDefaultIMG') and self.Device_id==2:
+                print('ERROR: The u-boot default pre-build folder "ubootDefaultIMG" is not available')
+                return False
+            if self.UbootSFP_default_preBuild_dir =='': 
+                print('ERROR: It was no ".sft" or ".bin" bootloader file found inside the "ubootDefaultSFP" folder!')
+                return False
             try:
                 # Only for the Arria 10 SX:
-                if generate_spl_image_file[self.Device_id]: 
-                    #  Copy the SPL BootROM File to the RAW 
-                    shutil.copy2(self.UbootSPL_default_preBuild_dir,
-                        self.Raw_folder_dir+'/'+SPL_OUTPUT_FILE_NAME)
+                if not generate_sfp_image_file[self.Device_id]: 
+                    #  Copy the SFP BootROM File to the RAW 
+                    shutil.copy2(self.UbootSFP_default_preBuild_dir,
+                        self.Raw_folder_dir+'/'+SFP_OUTPUT_FILE_NAME)
                     # Copy the u-boot image to the VFAT partition
                     shutil.copy2(self.UbootIMG_default_preBuild_dir,
                         self.Vfat_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
                     
                 else:
                     # For other devices: Copy the u-boot exe 
-                    shutil.copy2(self.UbootSPL_default_preBuild_dir,
+                    shutil.copy2(self.UbootSFP_default_preBuild_dir,
                         self.Raw_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
             except Exception as ex:
                 print('ERROR: Failed to copy the pre-build file to the RAW folder MSG='+str(ex))
@@ -834,41 +1000,41 @@ class SocfpgaPlatformGenerator:
         if bootloader_build_required:
             toolchain_dir = excpath+'/toolchain'
             print('--> Check if the linaro toolchain is installed')
-            if not os.path.isdir(toolchain_dir+'/'+limaro_version_list[self.Device_id]):
+            if not os.path.isdir(toolchain_dir+'/'+linaro_version_list[self.Device_id]):
                 if not os.path.isdir(toolchain_dir):
                     os.mkdir(toolchain_dir)
                 
-                if not os.path.isfile(toolchain_dir+'/'+limaro_version_list[self.Device_id]+'.tar.xz'):
-                    print('--> Download the linaro toolchain "'+limaro_version_list[self.Device_id]+'"')
+                if not os.path.isfile(toolchain_dir+'/'+linaro_version_list[self.Device_id]+'.tar.xz'):
+                    print('--> Download the linaro toolchain "'+linaro_version_list[self.Device_id]+'"')
                     try:
-                        wget.download(limaro_url_list[self.Device_id], out=toolchain_dir)
+                        wget.download(linaro_url_list[self.Device_id], out=toolchain_dir)
                     except Exception as ex:
                         print('\nERROR: Failed to download with wget! MSG:'+str(ex))
-                        print('       Download URL: "'+limaro_url_list[self.Device_id]+'"')
+                        print('       Download URL: "'+linaro_url_list[self.Device_id]+'"')
                         return False
-                if os.path.isfile(toolchain_dir+'/'+limaro_version_list[self.Device_id]+'.tar.xz'):
+                if os.path.isfile(toolchain_dir+'/'+linaro_version_list[self.Device_id]+'.tar.xz'):
                     print('\n--> Unpackage the linaro toolchain archive file')
                     try:
                         os.system('tar xf '+toolchain_dir+'/'+ \
-                                limaro_version_list[self.Device_id]+'.tar.xz -C '+toolchain_dir)
+                                linaro_version_list[self.Device_id]+'.tar.xz -C '+toolchain_dir)
                     except subprocess.CalledProcessError:
                         print('ERROR: Failed to unpackage the linaro toolchain!')
                         return False
                     print('    == Done')
-                    print('--> Remove the limaro archive file')
+                    print('--> Remove the linaro archive file')
                     try:
                         shutil.rmtree(toolchain_dir+'/'+ \
-                                limaro_version_list[self.Device_id]+'.tar.xz')
+                                linaro_version_list[self.Device_id]+'.tar.xz')
                     except Exception:
-                        print('ERROR: Failed to remove the limaro archive file')
+                        print('ERROR: Failed to remove the linaro archive file')
                     print('    == Done')
 
-                if not os.path.isdir(toolchain_dir+'/'+limaro_version_list[self.Device_id]):
+                if not os.path.isdir(toolchain_dir+'/'+linaro_version_list[self.Device_id]):
                     print('ERROR: The download or the unpackage of the linaro toolchain failed!')
-                    print('       Download URL: "'+limaro_url_list[self.Device_id]+'"')
+                    print('       Download URL: "'+linaro_url_list[self.Device_id]+'"')
                     return False
             else:
-                print('    The linaro toolchain in Version "'+limaro_version_list[self.Device_id]+ \
+                print('    The linaro toolchain in Version "'+linaro_version_list[self.Device_id]+ \
                         '" is installed')
 
             # Define the EXPORT value to the toolchain path
@@ -998,8 +1164,6 @@ class SocfpgaPlatformGenerator:
                                 print('ERROR: Failed to remove the old primary deviceTree file!')
                                 sys.exit()
                         '''
-
-
                         # 
                         # cd $TOP_FOLDER/a10_soc_devkit_ghrd/software/bootloader/u-boot-socfpga
                         #    ./arch/arm/mach-socfpga/qts-filter-a10.sh \
@@ -1047,36 +1211,21 @@ class SocfpgaPlatformGenerator:
             # For the Intel Arria 10 SX: decompile the auto generated DeviceTree
             #if self.Device_id==2: 
 
-
-
             start_menuconfig = False 
             run_defconfig =True
 
             if generation_mode==0:
-                print('\n################################################################################')
-                print('#                                                                              #')
-                print('#                     OPTIONAL: CHANGE U-BOOT MANUALLY                         #')
-                print('#                                                                              #')
-                print('#  At this point it is possible to change the code of "u-boot-socfpga"         #')
-                print('#                                                                              #')
-                print('--------------------------------------------------------------------------------')
-                print('#                   --- "u-boot-socfpga" file Directory ---                   #')
-                print('#   '+self.U_boot_socfpga_dir)
-                print('--------------------------------------------------------------------------------')
-                print('#                M: Start menuconfig for "u-boot-socfpga"                      #')
-                print('#                D: Start menuconfig for "u-boot-socfpga" without defconfig    #')
-                print('#                Q: Abort                                                      #')
-                print('#    anything else: continue with compiling "u-boot-socfpga"                   #')
-                print('------------------------------------------------------------------------------')
-                __wait__ = input('Type anything to continue ... ')
+                # Allow the user to selelect the way how the bootloader should be build 
+                headline = ['OPOPTIONAL: Change u-boot manually with menuconfig',\
+                '"u-boot-socfpga" file Directory: "'+self.U_boot_socfpga_dir+'"']
+                headline_table=['Task']
+                headline_content=['Start menuconfig for "u-boot-socfpga"',\
+                'Start menuconfig for "u-boot-socfpga" without defconfig','Continue with compiling "u-boot-socfpga"']
+                BuildSelchoose = printSelectionTable(headline,headline_table,headline_content,[],True,5)
 
-                if __wait__ =='q' or __wait__=='Q':
-                    return False
-                
-                if __wait__ =='m' or __wait__=='M':
+                if BuildSelchoose==1:
                     start_menuconfig = True
-
-                if __wait__ =='d' or __wait__=='D':
+                elif BuildSelchoose==2:
                     start_menuconfig = True
                     run_defconfig = False
 
@@ -1198,9 +1347,10 @@ class SocfpgaPlatformGenerator:
 
             print('--> "u-boot-socfpga" build was successfully')
         
-    ####################################### Create the bootable SPL (for Arria 10) #######################################
-            if generate_spl_image_file[self.Device_id]: 
-                print('---> Generate the bootable SPL (for the BootROM of the Arria 10)')
+    ####################################### Create the bootable SFP (for Arria 10) #######################################
+            if not generate_sfp_image_file[self.Device_id]: 
+                # Only for the Intel Arria 10 SX
+                print('---> Generate the bootable SFP (for the BootROM of the Arria 10)')
                 if not os.path.isfile(self.U_boot_socfpga_dir+'/'+U_BOOT_IMAGE_FILE_NAME):
                     print('ERROR: The u-boot output file "u-boot.img" does not exsist!')
                     print('        The u-boot build faild!')
@@ -1209,9 +1359,9 @@ class SocfpgaPlatformGenerator:
                     print('ERROR: The u-boot output folder "/spl" does not exsist!')
                     print('        A proper bootloader generation is not posibile!')
                     return False
-                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_INPUT_FILE_NAME):
+                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SFP_INPUT_FILE_NAME):
                     print('ERROR: The bootloader generation failed!')
-                    print('       The output file "'+SPL_INPUT_FILE_NAME+'" was')
+                    print('       The output file "'+SFP_INPUT_FILE_NAME+'" was')
                     print('       not generated during compilation of u-boot!')
                     return False
                 try:
@@ -1235,9 +1385,9 @@ class SocfpgaPlatformGenerator:
                         #   -hv ->  Header version to be created (Arria/Cyclone V = 0, Arria 10 = 1)
                         #   -o  -> Output file, relative and absolute path supported
 
-                        b = bytes(' mkpimage -hv 1 -o '+SPL_OUTPUT_FILE_NAME+' '+SPL_INPUT_FILE_NAME+\
-                            ' '+SPL_INPUT_FILE_NAME+' '+SPL_INPUT_FILE_NAME+' '\
-                                +SPL_INPUT_FILE_NAME+' \n','utf-8')
+                        b = bytes(' mkpimage -hv 1 -o '+SFP_OUTPUT_FILE_NAME+' '+SFP_INPUT_FILE_NAME+\
+                            ' '+SFP_INPUT_FILE_NAME+' '+SFP_INPUT_FILE_NAME+' '\
+                                +SFP_INPUT_FILE_NAME+' \n','utf-8')
 
                         edsCmdShell.stdin.write(b) 
                         #time.sleep(10*DELAY_MS)
@@ -1248,10 +1398,10 @@ class SocfpgaPlatformGenerator:
                     print('ERROR: Failed to start the Intel EDS Command Shell! MSG:'+ str(ex))
                     return False
 
-                # Check that the SPL output file is avalibile
-                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME):
-                    print('ERROR: The bootloader SPL generation failed!')
-                    print('       The output file "'+SPL_OUTPUT_FILE_NAME+'" was')
+                # Check that the SFP output file is avalibile
+                if not os.path.isfile(self.U_boot_socfpga_dir+'/spl/'+SFP_OUTPUT_FILE_NAME):
+                    print('ERROR: The bootloader SFP generation failed!')
+                    print('       The output file "'+SFP_OUTPUT_FILE_NAME+'" was')
                     print('       not generated with the SoC EDS command "mkpimage"')
                     return False
                 print('    "u-boot-socfpga" spl generation was successful')        
@@ -1265,10 +1415,10 @@ class SocfpgaPlatformGenerator:
             
             try:
                 # Only for the Arria 10 SX: 
-                if generate_spl_image_file[self.Device_id]: 
-                    # Copy the SPL BootROM File to the RAW partition
-                    shutil.copy2(self.U_boot_socfpga_dir+'/spl/'+SPL_OUTPUT_FILE_NAME,
-                        self.Raw_folder_dir+'/'+SPL_OUTPUT_FILE_NAME)
+                if not generate_sfp_image_file[self.Device_id]: 
+                    # Copy the SFP BootROM File to the RAW partition
+                    shutil.copy2(self.U_boot_socfpga_dir+'/spl/'+SFP_OUTPUT_FILE_NAME,
+                        self.Raw_folder_dir+'/'+SFP_OUTPUT_FILE_NAME)
                     # Copy the u-boot bootloader to the VFAT partition
                     shutil.copy2(self.U_boot_socfpga_dir+'/'+U_BOOT_IMAGE_FILE_NAME,
                         self.Vfat_folder_dir+'/'+U_BOOT_IMAGE_FILE_NAME)
@@ -1277,7 +1427,7 @@ class SocfpgaPlatformGenerator:
                     shutil.copy2(self.U_boot_socfpga_dir+'/'+BOOTLOADER_FILE_NAME,
                         self.Raw_folder_dir+'/'+BOOTLOADER_FILE_NAME)
             except Exception as ex:
-                print('ERORR: Failed to copy the SPL file! MSG: '+str(ex))
+                print('ERORR: Failed to copy the SFP file! MSG: '+str(ex))
                 return False
      
         print('     = Done')
@@ -1339,18 +1489,16 @@ class SocfpgaPlatformGenerator:
                     print('    A project with the same device "'+self.Socfpga_devices_list[self.Device_id]+'" was found')
                     # Find the zImage, the rootfs and devicetree files if available
                     for name in os.listdir(yocto_device_dir):
-                        
                         if  os.path.isfile(yocto_device_dir+'/'+name) and \
                             not os.path.islink(yocto_device_dir+'/'+name):
 
-                            if name.find("rootfs") !=-1:
+                            if name.find("rootfs") !=-1 and name.endswith('.tar.gz'):
                                 yocto_rootfs_dir = yocto_device_dir+'/'+name
                                 yocto_rootfs_name = name
-                            elif name.find("zImage") !=-1:
+                            elif name.find("zImage") !=-1 and name.endswith('.bin'):
                                 yocto_zimage_dir = yocto_device_dir+'/'+name
                                 yocto_zimage_name = name
-                            elif name.find("devicetree") !=-1:
-                                # NOTE: Must be checked!!
+                            elif name.endswith('.dts'):
                                 yocto_devicetree_dir = yocto_device_dir+'/'+name
                                 yocto_devicetree_name = name 
                     # Something found?
@@ -1372,38 +1520,48 @@ class SocfpgaPlatformGenerator:
 
             if copy_mode==0:
                 yocto_project_available =False
-                print('\n################################################################################')
-                print('#                                                                              #')
-                print('#            COMPATIBLE YOCTO PROJECT LINUX DISTRIBUTION WAS FOUND             #')
-                print('#                     Use this distribution for the build?                     #')
-                print('--------------------------------------------------------------------------------')
-                print('#                   --- Yocto Linux Distribution  ---                          #')
-                print('#    Directory: "'+yocto_device_dir+'" ')
-                print('#    Modification Date: '+str(modification_time))
-                print('#    rootfs: "'+yocto_rootfs_name)
-                print('#    zImage: "'+yocto_zimage_name+'"')
-                print('#    Devicetree: "'+yocto_devicetree_name+'"')
-                print('--------------------------------------------------------------------------------')
-                print('#                Y: Yes, use these files for this build                        #')
-                print('#                M: No, copy file manually instead                             #')
-                print('#                Q: Abort                                                      #')
-                if not linux_files_available:
-                    print('#    anything else: Yes, use these files for this build                        #')
-                else:
-                    print('#    anything else: Use the existing Linux files inside the Partition folder   #')
-                print('------------------------------------------------------------------------------')
-                __wait3__ = input('Type anything to continue ... ')
-              
-                if __wait3__ =='q' or __wait3__=='Q':
-                    return False
-                if __wait3__ =='y' or __wait3__=='Y':
+                headline = ['COMPATIBLE YOCTO PROJECT LINUX DISTRIBUTION WAS FOUND',\
+                'Use this distribution for the build?']
+                headline_table=['Specs of the found Yocto Project Linux Distribution']
+                headline_content=['Directory: "'+yocto_device_dir+'"','Modification Date: '+str(modification_time),
+                'rootfs: "'+yocto_rootfs_name,'zImage: "'+yocto_zimage_name+'"','Devicetree: "'+yocto_devicetree_name+'"']
+                printSelectionTable(headline,headline_table,headline_content, [],False,5)
+
+                headline = ['Use this distribution for the build?']
+                headline_table=['Task']
+
+                headline_content=['Yes, use these files for this build','No, copy file manually instead']
+                if linux_files_available:
+                    headline_content.append('Use the existing Linux files inside the Partition folder')
+
+                __wait3__ = printSelectionTable(headline,headline_table,headline_content, [],True,5)
+                if __wait3__ == 1:
                     yocto_project_available=True
-                if __wait3__ =='m' or __wait3__=='M':
+                     # Allow to use the default device tree 
+                    if yocto_devicetree_name=='' or yocto_devicetree_name=='-':
+                 
+                        headline = ['Inside the Yocto Project Repo. folder no Linux Devicetree (.dts) was found!']
+                        if os.path.isfile(self.Vfat_folder_dir+'/'+ DEVICETREE_OUTPUT_NAME[self.Device_id]):
+                            headline.append('Use the exsting Linux devicetree file inside the partition folder OR')
+                        headline.append('Copy a Linux devicetree file (.dts) to the partition folder')
+
+                        headline_table=['Name and Location of the requiered file to copy']
+                        headline_content=['Directory: "'+self.Vfat_folder_dir+\
+                        '"','Requiered Name: "'+DEVICETREE_OUTPUT_NAME[self.Device_id]+'"']
+                        printSelectionTable(headline,headline_table,headline_content, [],False,5)
+                        __wait5__ = input(' Type something to contiue... (q=Abort)')
+                        if __wait5__=='q' or __wait5__=='Q': sys.exit() 
+
+                        if not os.path.isfile(self.Vfat_folder_dir+'/'+ DEVICETREE_OUTPUT_NAME[self.Device_id]):
+                            print('ERROR: The Linux Devicetree file was not found inside the partition folder!')
+                            print('        requiered file dir.:"'+self.Vfat_folder_dir+\
+                                '/'+ DEVICETREE_OUTPUT_NAME[self.Device_id]+'"')
+                            print('        Please copy the file to this location and try again!')
+                            sys.exit()
+                elif __wait3__ ==2:
                     yocto_project_available=False
                     linux_files_available = False
-            else:
-                __wait3__ =' '
-            
+
         if yocto_project_available:
                 print('--> Copy the Yocto Project files to the "'+IMAGE_FOLDER_NAME+'" folder')
 
@@ -1425,8 +1583,15 @@ class SocfpgaPlatformGenerator:
 
                 # Copy compressed Kernel image to the image partition folder
                 if not yocto_devicetree_dir == '':
-                    print('    Copy "'+yocto_devicetree_name+'" and rename it to "zImage"')
-                    # NOTE: Work required!!
+                    print('    Copy "'+yocto_devicetree_name+'" and rename it to"'+\
+                        DEVICETREE_OUTPUT_NAME[self.Device_id]+'"')
+                    try:
+                        shutil.copy2(yocto_device_dir+'/'+yocto_devicetree_name \
+                            ,self.Vfat_folder_dir+'/'+ DEVICETREE_OUTPUT_NAME[self.Device_id])
+                    except Exception as ex:
+                        print('EROR: Failed to copy the zImage file! MSG: '+str(ex))
+                        return False
+
         elif linux_files_available:
             # Use the existing files 
             print('--> The existing Linux files inside the image folder will be used again')
@@ -1588,24 +1753,16 @@ class SocfpgaPlatformGenerator:
                 
 
             if self.unlicensed_ip_found==True and not copy_file: 
-                print('\n#############################################################################')
-                print('#        Your Quartus Prime project contains unlicend demo IPs               #')
-                print('#                                                                            #')
-                print('#                                                                            #')
-                print('#              For this project a generation of a  FPGA                      #')
-                print('#                 configuration file is not possible.                        #')
-                print('#                                                                            #')
-                print('#               Please insert a different ".rbf" file                        #')
-                print('#   File name: "'+rbf_config_name_found+'"                                   #')
-                print('#   Directory: "'+self.Vfat_folder_dir+'/'+rbf_config_name_found+'"          #')
-                print('#                                                                            #')
-                print('#        Q: Quit the script                                                  #')
-                print('#        Any other input: Continue with the generation                       #')
-                print('#                                                                            #')
-                print('##############################################################################')
-                _wait_ = input('#              Please type ...                                               #\n')
-                if _wait_ == 'q' or _wait_ == 'Q':
-                    sys.exit()
+
+                headline = ['Your Quartus Prime project contains unlicend demo IPs',\
+                ' For this project a generation of a FPGA configuration file is not possible.',\
+                ' Please insiert a exsting ".rbf" FPGA configuration file to enable the configuration during boot',\
+                ' Note: After the boot it is posibile to overwrite the FPGA configuration via JTAG']
+                headline_table=['FPGA configuration file location']
+                headline_content=['File name: "'+rbf_config_name_found+'"','Directory: "'+self.Vfat_folder_dir+'/'+rbf_config_name_found+'"']
+                printSelectionTable(headline,headline_table,headline_content, [],False,5)
+                ret=input('Please chnage this file by hand and type something to continue.. (q=quite) ')
+                if ret=='q' or ret=='Q': sys.exit()
 
             # 3.a Generate the FPGA configuration file
             if gen_fpga_conf and not copy_file:
@@ -1732,7 +1889,7 @@ class SocfpgaPlatformGenerator:
                                 f.write(ITS_FILE_CONTENT)
                             
                          
-                            print('--> Create the FIT image with the FPGA programming files (used by SPL)')
+                            print('--> Create the FIT image with the FPGA programming files (used by SFP)')
 
                             #
                             # mkimage -E -f board/altera/arria10-socdk/fit_spl_fpga.its fit_spl_fpga.itb
@@ -1843,11 +2000,11 @@ class SocfpgaPlatformGenerator:
 
         # Use the default name "SocfpgaLinux.img" as output file name
         if ImageFileName=='':
-            self.ImageFileName   = "SocfpgaLinux"+dt_string+".img"
+            self.ImageFileName   = "SocfpgaLinux_"+dt_string+".img"
         else:
             self.ImageFileName = ImageFileName
         if OutputZipFileName=='':
-            self.OutputZipFileName= "SocfpgaLinux"+dt_string+".zip"
+            self.OutputZipFileName= "SocfpgaLinux_"+dt_string+".zip"
         else: 
             self.OutputZipFileName = OutputZipFileName
         
@@ -2012,33 +2169,29 @@ if __name__ == '__main__':
         if not socfpgaGenerator.GenerateFPGAconf():
             sys.exit()
 
-    print('\n#############################################################################')
-    print('#    Copy files to the partition folders to allow the pre-installment         #')
-    print('#                    to the depending image partition                         #')
-    print('#                                                                             #')
-    print('#                     === Folders for every partition ===                     #')
+    headline = [' Copy files to the "my_folders" the content',\
+        'These files will then be copied to the depending rootfs location','==========', \
+        'Copy files to the partition folders to allow the pre-installment',\
+        'to the depending image partition','Folders for every partition:']
+    headline_table=['(ID) Folder Name','Filesystem | Size ']
+    content1=[]
+    content2=[]
     for part in socfpgaGenerator.PartitionList:
-        print('# Folder: "'+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False)+'"| No.: '+ \
-                                str(part.id)+' Filesystem: '+part.type+' Size: '+str(part.size_str))
-    print('#                                                                            #')
-    print('##############################################################################')
-    print('#                                                                            #')
-    print('#                    Compress the output image file?                         #')
-    print('#     Should the output file be compressed as .zip to reduce the size        #')
-    print('#     Image creator tools like "Rufus" can directly work with .zip files     #')
-    print('#                                                                            #')
-    print('#        Y: Compress the output image as .zip                                #')
-    print('#        Q: Quit the script                                                  #')
-    print('#        Any other input: Do not compress the output image                   #')
-    print('#                                                                            #')
-    print('##############################################################################')
-    _wait_ = input('#              Please type ...                                               #\n')
-    if _wait_ == 'q' or _wait_ == 'Q':
-        sys.exit()
-    elif _wait_ =='Y' or _wait_ =='y':
-        compress_output = True
-    else:
-        compress_output = False
+        content1.append('('+str(part.id)+') '+IMAGE_FOLDER_NAME+'/'+part.giveWorkingFolderName(False))
+        content2.append(part.type+' | '+str(part.size_str))
+
+    printSelectionTable(headline,headline_table,content1,content2,False,10)
+
+    headline = [' Compress the output image file as ".zip"',\
+            'A zip files reduces the image file size by removing the offsets.',\
+            'Commen boot disk generation tools can directly work with these files.']
+    headline_table=['Task']
+    content1=['Compress the output image as ".zip"','Use only a regular ".img" file']
+
+    comprsSel= printSelectionTable(headline,headline_table,content1,[],True,32)
+    compress_output = False
+    if comprsSel==1:compress_output = True
+    
     print('##############################################################################')
 
     # Unzip all available archive files such as the rootfs 
@@ -2047,7 +2200,7 @@ if __name__ == '__main__':
 
     print('\n#############################################################################')
     print('#                                                                            #')
-    print('#                    the rootfs is unpackaged                                #')
+    print('#                    The rootfs is unpackaged                                #')
     print('#                                                                            #')
     print('#        At this point it is enabled to change the rootfs manually           #')
     print('#                                                                            #')
@@ -2065,14 +2218,24 @@ if __name__ == '__main__':
         sys.exit()
     
 ############################################################ Goodby screen  ###################################################
-    print('\n################################################################################')
-    print('#                                                                              #')
-    print('#                        GENERATION WAS SUCCESSFUL                             #')
-    print('# -----------------------------------------------------------------------------#')
-    print('#                                                                              #')
-    print('#                            ROBIN SEBASTIAN                                   #')
-    print('#                     (https://github.com/robseb/)                             #')
-    print('#                             git@robseb.de                                    #')
-    print('#                                                                              #')
-    print('################################################################################')
+    headline = [' GENERATION WAS SUCCESSFUL','------------------------------------------------',\
+                'SUPPORT THE AUTHOR','------------------------------------------------',
+                'ROBIN SEBASTIAN','(https://github.com/robseb/)','git@robseb.de',' ',\
+                'rsyocto and socfpgaGenerator are projects, that I have fully on my own.',
+                'No companies are involved in these projects.','I am recently graduated as Master of Since of electronic engineering',\
+                'Please support me for further development']
+    headline_table=['Output']
+ 
+    headline_table=['Output']
+    now = datetime.now()
+    date_string = now.strftime("%Y%m%d_%H%M")
+    dt_string= "SocfpgaLinux_"+date_string+".img"
+    dtz_string= "SocfpgaLinux_"+date_string+".zip"
+    ext = os.getcwd()+'/'
+    content1=['           Output file: "'+dt_string+'"']
+    if compress_output:
+        content1.append('Compressed Output file: "'+dtz_string+'"')
+    content1.append('             Directory: "'+ext+'"')
+
+    printSelectionTable(headline,headline_table,content1,[],False,32)
 # EOF
