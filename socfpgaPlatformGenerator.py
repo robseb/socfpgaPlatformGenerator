@@ -55,8 +55,11 @@
 #  * Bug fix with the partition size calculation and unzip of archive files 
 #  * Spell fix with the name "linaro" 
 #
+# (2021-02-17) Vers. 1.11
+#  Small bug fix for CentOS
+#
 
-version = "1.10"
+version = "1.11"
 
 #
 #
@@ -537,7 +540,7 @@ class SocfpgaPlatformGenerator:
             if ".qpf" in file:
                 self.Qpf_file_name =file
                 break
-
+        self.sopcinfo_file_name = '':
         for file in os.listdir(self.Quartus_proj_top_dir):
             if ".sopcinfo" in file:
                 self.sopcinfo_file_name =file
