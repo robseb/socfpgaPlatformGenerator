@@ -81,10 +81,16 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
         chmod +x SoCEDSSetup-20.1.0.711-linux.run && ./SoCEDSSetup-20.1.0.711-linux.run
         ````
 * Install the required packages
-    ````shell
-    sudo apt-get update -y && sudo apt-get install -y bison flex libncurses-dev \
-         git device-tree-compiler  u-boot-tools
-    ````
+	* **For Ubuntu Linux** 	
+	````shell
+	sudo apt-get update -y && sudo apt-get install -y bison flex libncurses-dev \
+	git device-tree-compiler  u-boot-tools
+	````
+	* **For CentOS Linux** 	
+	````shell
+	sudo yum -y install git dtc uboot-tools
+	git device-tree-compiler  u-boot-tools
+	````
 * Navigate into your Quartus Prime Project folder with the Linux console
     * The project configurations will then be used to build the bootable image 
     * Note: The project compilation must be successfully done
