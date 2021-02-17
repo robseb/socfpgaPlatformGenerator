@@ -540,7 +540,7 @@ class SocfpgaPlatformGenerator:
             if ".qpf" in file:
                 self.Qpf_file_name =file
                 break
-        self.sopcinfo_file_name = '':
+        self.sopcinfo_file_name = ''
         for file in os.listdir(self.Quartus_proj_top_dir):
             if ".sopcinfo" in file:
                 self.sopcinfo_file_name =file
