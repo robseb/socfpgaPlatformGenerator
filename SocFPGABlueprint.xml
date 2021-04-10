@@ -21,6 +21,6 @@
 <!-- 	L 	    => No ="" -->
 <LinuxDistroBlueprint>
 <partition id="1" type="vfat" size="*" offset="5M" devicetree="Y" unzip="N" ubootscript="arm" />
-<partition id="2" type="ext3" size="*" offset="3G" devicetree="N" unzip="Y" ubootscript="" />
+<partition id="2" type="ext3" size="*" offset="2G" devicetree="N" unzip="Y" ubootscript="" />
 <partition id="3" type="RAW" size="*" offset="20M"  devicetree="N" unzip="N" ubootscript="" />
 </LinuxDistroBlueprint>
