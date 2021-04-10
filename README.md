@@ -246,7 +246,7 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
     
     The script will progress the data inside the partition folders by compiling the *Linux Device Tree*, 
     the u-boot script and will display the partition sizes for the entire image partition of the bootable image file.
-    In case the *u-boot* is configured to write the FPGA configuration the script will generate 
+    In case the *u-boot* is configured to write the FPGA Configuration the script will generate 
     the depending FPGA configuration file. This is only possible if no unlicensed IP is available inside the *Intel Quartus Prime FPGA* Project. 
     For instance Quartus Prime projects containing an *Intel NIOS II* Soft-Core processor can not be generated. 
     Then it is possible to copy another FPGA configuration file to the image partition folder (*No.1 vfat*).
@@ -305,7 +305,7 @@ The following steps describe in the right sequence the required Python methods t
 
 3. **Copy the Yocto Project Linux Distribution files to the partition**
     
-    The following method can copy the Linux *rootfs*, *Linux Device Tree* and the compressed Kernel Image from the Yocto Project to the Image partition folder.
+    The following method can copy the Linux *rootfs*, *Linux Device Tree* and the compressed Kernel image from the Yocto Project to the image partition folder.
     ````python
     #
     # @brief Copy all essential Linux Distribution files (rootfs,zImage,Device Tree) to  
