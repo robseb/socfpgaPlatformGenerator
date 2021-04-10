@@ -84,7 +84,7 @@ For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linu
 	* **For Ubuntu Linux** 	
 	````shell
 	sudo apt-get update -y && sudo apt-get install -y bison flex libncurses-dev \
-	git device-tree-compiler  u-boot-tools
+	git device-tree-compiler  u-boot-tools sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
 	````
 	* **For CentOS Linux** 	
 	````shell
