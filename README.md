@@ -11,10 +11,10 @@
 
 **This Python allows to build with the Intel Embedded Development Suite (SoC-EDS) the entire bootflow and generates a bootable image (.img) file to boot any Linux Distributions**
 
-This Python script was designed to automate the always identical build flow for Intel SoC-FPGAs to reduce the possible sources of error during design. It can use the information provided by the Quartus Prime project to compile and configure the bootloader (u-boot) to boot up an Embedded Linux and to configure the FPGA fabric with the Quartus Prime project. During generation it is for the user enabled to select a compatible Yocto Project Linux Distribution or to copy a custom Linux Distribution to an Image folder. The Image folder contains for every partition of the final SD-Card image a sub-folder. Files copied into these folders will automatically be pre-installed to the depending partition on the bootable SD-Card image. To achieve this internally my  [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) is used to generate an image file. 
+This Python script was designed to automate the always identical **build flow** for *Intel SoC-FPGAs* to reduce the possible sources of error during design. It can use the information provided by the *Intel Quartus Prime* FPGA project to compile and configure the bootloader (*u-boot*) to boot up an Embedded Linux and to configure the FPGA Fabric with the *Intel Quartus Prime* FPGA project. During generation it is for the user enabled to select a compatible *OpenEmbedded Yocto Project* Linux Distribution or to copy a custom Linux Distribution to an image folder. The image folder contains for every partition of the final SD-Card image a sub-folder. Files copied into these folders will automatically be pre-installed to the depending partition on the bootable SD-Card image. To achieve this internally my  [*LinuxBootImageFileGenerator*](https://github.com/robseb/LinuxBootImageFileGenerator) is used to generate an image file. 
 Beside the executing of the script as a console application it is also enabled to use the included Python class to implement it into a custom build system. I used it to automate the entire generation of my Embedded Linux [*rsyocto*](https://github.com/robseb/rsyocto) for *Intel* *SoC-FPGAs*.
 
-It can run on any modern Linux operating system, such as CentOS or Ubuntu Linux with the pre-installed SoC-EDS. 
+It can run on any modern Linux operating system, such as *CentOS* or *Ubuntu* Linux with the pre-installed *Intel SoC-EDS*. 
 
 ___
 
@@ -73,7 +73,7 @@ ___
 For generating a bootable image for *Intel* SoC-FPGAs by executing a single Linux command please follow this step-by-step guide:
     
 * **Install *Intel Quartus Prime** (*18.1 or later*)
-    *    A step-by-step guide how to install Intel Quartus Prime on Linux is available [here](https://github.com/robseb/NIOSII_EclipseCompProject#i-installment-of-intel-quartus-prime-191-and-201-with-nios-ii-support) (*NIOS II support is for this project not required*)
+    *    A step-by-step guide how to install Intel Quartus Prime on Linux is available [here](https://github.com/robseb/NIOSII_EclipseCompProject#i-installment-of-intel-quartus-prime-191-and-201-with-nios-ii-support) (*NIOS II Soft-Core support is for this project not required*)
 * **Install the *Intel Embedded Development Suite*** (*SoC-EDS*)
     * [Download](https://fpgasoftware.intel.com/soceds/20.1/?edition=standard&platform=windows&download_manager=direct) *Intel SoC-EDS 20.1 Standard* for Linux
     * Install *Intel SoC-EDS* by executing the following Linux console commands
