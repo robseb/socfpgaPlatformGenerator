@@ -45,7 +45,7 @@
  saveenv
  
 # Notice the FPGA configuration file name 
-echon --- FPGA configuration File Name
+echo --- FPGA configuration File Name
 echo fit_spl_fpga.itb
  
 echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
