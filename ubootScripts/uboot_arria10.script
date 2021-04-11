@@ -51,10 +51,21 @@ echo fit_spl_fpga.itb
 echo --- enable HPS-to-FPGA, FPGA-to-HPS, LWHPS-to-FPGA bridges ---
 bridge enable;
 
+echo --- Put all Bridges to Reset (brgmodrst) ---
+mw.w 0xFFD0502C 0x2c
+echo --- Relase all Bridges ---
+mw.w 0xFFD0502C 0x0
+
+echo --- Enable L4 Firewall (l4_priv_set) ---
+mw.w 0xFFD11004 0xFFFFFFFF
+
+echo --- Disable L4 privaty filter for moudles ---
+mw.w 0xFFD11000 0xFFFFFFFF
+
 echo --- Booting the Yocto Linux ---
-echo -> load linux kernel image and device tree to memory
+echo -> load Linux Kernel image and device tree to memory
 run mmcload;
  
-echo --- set kernel boot arguments, then boot the kernel ---
+echo --- set Kernel boot arguments, then boot the Kernel ---
 echo *** leaving the u-boot boot sequence scipt (boot.script) ***
 run mmcboot;
