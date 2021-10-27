@@ -61,8 +61,11 @@
 # (2021-10-26) Vers. 1.12
 #  Setting u-boot-socfpga branch to "rel_socfpga_v2020.10_21.06.02_pr"
 #
+# (2021-10-27) Vers. 1.13
+#  Support for FPPx32 FPGA Configuration Files 
+#
 
-version = "1.12"
+version = "1.13"
 
 #
 #
@@ -1666,9 +1669,12 @@ class SocfpgaPlatformGenerator:
     #                                      File name: <as in uboot script>_linux.rbf)
     # @param linux_filename        ".rfb" output file name for the configuration with Linux 
     # @param linux_copydir         the location where the output Linux FPGA configuration file should be copied 
+    # @param FPPx32_mode           Enables the generation of FPPx32 FPGA Configuration files
     # @return                      success
     #
-    def GenerateFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False, linux_filename='', linux_copydir=''):
+    def GenerateFPGAconf(self,copy_file=False,dir2copy='',boot_linux =False, linux_filename='', \
+        linux_copydir='', FPPx32_mode=False):
+
         print(' --> Check if it is necessary to generate a FPGA configuration file ')
 
         if self.Device_id==2 and boot_linux:
@@ -1807,7 +1813,17 @@ class SocfpgaPlatformGenerator:
                             else:
                                 pre_fix =''
                             
-                            b = bytes('quartus_cpf -c '+pre_fix+' '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            # Enable FPPx32 FPGA Configuration Mode
+                            if self.Device_id==2 and FPPx32_mode:
+                                print('[ERROR]  For the Intel Arria 10 SX is no FPPx32 FPGA Configuration file mode avalibile')
+                                return False
+
+                            FPPx32_pre_fix =''
+                            if FPPx32_mode:
+                                print('[NOTE]   GENERATE U-BOOT FPGA CONFIGURATION FOR FPPx32!')
+                                FPPx32_pre_fix = ' -o bitstream_compression=on '
+                            
+                            b = bytes('quartus_cpf -c '+pre_fix+FPPx32_pre_fix+' '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
                         else:
                             print(' --> Generate a new FPGA configuration file for configuration with the HPS (Linux)')
@@ -1815,8 +1831,13 @@ class SocfpgaPlatformGenerator:
 
                             b = bytes(' cd '+sof_file_dir+' \n', 'utf-8')
                             edsCmdShell.stdin.write(b) 
+
+                            mode_pre_fix =' -m FPP '
+                            if FPPx32_mode:
+                                print('[NOTE]   GENERATE U-BOOT FPGA CONFIGURATION FOR FPPx32!')
+                                mode_pre_fix = ' -o bitstream_compression=on '
             
-                            b = bytes('quartus_cpf -m FPP -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
+                            b = bytes('quartus_cpf '+mode_pre_fix+' -c '+self.Sof_file_name+' '+rbf_config_name_found+' \n','utf-8')
                             edsCmdShell.stdin.write(b) 
 
                         edsCmdShell.communicate()
