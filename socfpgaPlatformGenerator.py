@@ -58,8 +58,11 @@
 # (2021-02-17) Vers. 1.11
 #  Small bug fix for CentOS
 #
+# (2021-10-26) Vers. 1.12
+#  Setting u-boot-socfpga branch to "rel_socfpga_v2020.10_21.06.02_pr"
+#
 
-version = "1.11"
+version = "1.12"
 
 #
 #
@@ -89,7 +92,7 @@ IMAGE_FOLDER_NAME         = 'Image_partitions'
 GITNAME                   = "socfpgaplatformgenerator"
 GIT_SCRIPT_URL            = "https://github.com/robseb/socfpgaPlatformGenerator.git"
 GIT_U_BOOT_SOCFPGA_URL    = "https://github.com/altera-opensource/u-boot-socfpga"
-GIT_U_BOOT_SOCFPGA_BRANCH = "socfpga_v2020.04" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
+GIT_U_BOOT_SOCFPGA_BRANCH = "rel_socfpga_v2020.10_21.06.02_pr" # "socfpga_v2021.04" # default: master --> Arria 10 SX and Cyclone working: "socfpga_v2020.04"
 
 GIT_LINUXBOOTIMAGEGEN_URL = "https://github.com/robseb/LinuxBootImageFileGenerator.git"
 
@@ -1097,11 +1100,16 @@ class SocfpgaPlatformGenerator:
                     except Exception as ex:
                         print('ERROR: The cloning failed! Error Msg.:'+str(ex))
                         print('       Check your network connection and try it again')
+                        print('NOTE:  The branch will be often deleted by Intel')
+                        print('       check that the Branch "'+GIT_U_BOOT_SOCFPGA_BRANCH+'" exist on GitHub!')
+                        
                         return False
 
                     if not os.path.isabs(self.U_boot_socfpga_dir):
                         print('ERROR: Failed to clone u-boot-socfpga!')
                         print('       Check your network connection and try it again')
+                        print('NOTE:  The branch will be often deleted by Intel')
+                        print('       check that the Branch "'+GIT_U_BOOT_SOCFPGA_BRANCH+'" exist on GitHub!')
                         return False
 
                     print('       cloning done')
